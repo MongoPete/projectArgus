@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.services import agent_skills
 from app.models import (
     AgentType,
     ChatMessageIn,
@@ -204,6 +205,13 @@ def _heuristic(req: ChatRequest) -> ChatResponse:
     )
 
 
+def _last_user_text(messages: list[ChatMessageIn]) -> str:
+    for m in reversed(messages):
+        if m.role == "user":
+            return m.content.strip()
+    return ""
+
+
 def _to_lc_messages(messages: list[ChatMessageIn]) -> list:
     out = []
     for m in messages[-24:]:
@@ -221,6 +229,12 @@ async def run_chat(req: ChatRequest) -> ChatResponse:
         try:
             from langchain_openai import ChatOpenAI
 
+            last_user = _last_user_text(req.messages)
+            skills_block = ""
+            if last_user and agent_skills.skill_count() > 0:
+                skills_block = agent_skills.build_skills_injection_for_prompt(last_user)
+            system_with_skills = STRUCT_SYSTEM + skills_block
+
             llm = ChatOpenAI(
                 model="gpt-4o-mini",
                 temperature=0.15,
@@ -229,7 +243,7 @@ async def run_chat(req: ChatRequest) -> ChatResponse:
             structured = llm.with_structured_output(_LLMWorkflowParts)
             prompt = ChatPromptTemplate.from_messages(
                 [
-                    ("system", STRUCT_SYSTEM),
+                    ("system", system_with_skills),
                     MessagesPlaceholder("history"),
                 ]
             )

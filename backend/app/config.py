@@ -20,5 +20,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     openai_api_key: Optional[str] = None
 
+    # MongoDB Agent Skills (public GitHub; no token required for reads within rate limits)
+    agent_skills_repo: str = "mongodb/agent-skills"
+    agent_skills_branch: str = "main"
+
+    # Optional Atlas Admin API (service account OAuth — never commit real values)
+    atlas_client_id: Optional[str] = None
+    atlas_client_secret: Optional[str] = None
+
 
 settings = Settings()

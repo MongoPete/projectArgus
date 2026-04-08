@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,12 +6,27 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import get_db
-from app.routers import chat, dashboard, findings, flows, runs, settings as settings_router, workflows
+from app.routers import (
+    atlas_admin,
+    chat,
+    dashboard,
+    findings,
+    flows,
+    runs,
+    settings as settings_router,
+    skills,
+    workflows,
+)
 from app.seed import demo_findings, demo_workflows
+from app.services import agent_skills
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        await asyncio.to_thread(agent_skills.load_skills, settings.agent_skills_repo, settings.agent_skills_branch)
+    except Exception:
+        pass
     db = get_db()
     if await db.workflows.count_documents({}) == 0:
         for w in demo_workflows():
@@ -37,6 +53,8 @@ app.add_middleware(
 )
 
 app.include_router(chat.router)
+app.include_router(skills.router)
+app.include_router(atlas_admin.router)
 app.include_router(flows.router)
 app.include_router(dashboard.router)
 app.include_router(workflows.router)

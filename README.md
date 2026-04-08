@@ -61,11 +61,13 @@ Use this section when demoing or pitching so claims stay accurate.
 
 | Area | In this repo |
 | ---- | ------------ |
-| **Atlas Admin API** | Not called live. Ingest / analyze / deliver and flow steps use **deterministic mocks** unless you add tools. |
+| **Atlas Admin API** | Optional **live** OAuth smoke test: `GET /api/atlas/status` when `ATLAS_CLIENT_ID` / `ATLAS_CLIENT_SECRET` are set. LangGraph runs and the **flow-builder runner** stay **mock** unless you extend them. |
 | **Triggers** | `manual`, `schedule`, and `change_stream` exist on workflow **models** and in chat heuristics. There is **no background scheduler** and **no change-stream consumer** — use **Run now** for executions. |
 | **Tool flow runner** | **Simulated** log and ordering; palette nodes (Slack, Email, Atlas API, etc.) are **UI + mock**, not outbound integrations. |
-| **MongoDB Agent Skills** | Not bundled as a skills pack; optional **OpenAI** enriches chat only. |
+| **MongoDB Agent Skills** | Fetched from **`mongodb/agent-skills`** (GitHub) at startup; **OpenAI** chat injects **matched** skills into the system prompt. `GET /api/skills`, `POST /api/skills/reload`. |
 | **Stack note** | Demo orchestration uses **LangGraph**; a separate “MongoDB-native event bus” architecture (e.g. change streams as edges) is **not** what this scaffold runs today. |
+
+**Merge notes (Eugene PoC → this app):** see [`docs/MONGOMERGE.md`](docs/MONGOMERGE.md). Local drop `EKFiles/` is gitignored (often contains secrets).
 
 ## What to demo
 
@@ -84,6 +86,8 @@ The **analyze** step uses deterministic mock outputs per agent type (`spend`, `s
 ```
 MDBA/
 ├── MDBA_Opportunity_Assessment.md
+├── docs/
+│   └── MONGOMERGE.md           # Peter + Eugene integration map
 ├── docker-compose.yml          # optional: local MongoDB only (not required)
 ├── backend/
 │   ├── .env                    # your Atlas URI (gitignored)
@@ -109,6 +113,8 @@ MDBA/
 | `MONGODB_DB`    | Database name (default `mdba_demo`) |
 | `CORS_ORIGINS`  | Comma-separated allowed origins |
 | `OPENAI_API_KEY`| Optional — richer chat via `gpt-4o-mini` + structured workflow JSON |
+| `ATLAS_CLIENT_ID`, `ATLAS_CLIENT_SECRET` | Optional — Atlas service account for `GET /api/atlas/status` |
+| `AGENT_SKILLS_REPO`, `AGENT_SKILLS_BRANCH` | Optional — default `mongodb/agent-skills` / `main` |
 
 Settings load from **`backend/.env`** relative to the backend package (works even if your shell cwd is not `backend/`). See `backend/.env.example`.
 
