@@ -2,6 +2,8 @@
 
 Web showcase for **MongoDB Database Agents (MDBA)**: configurable workloads, LangGraph orchestration, findings inbox, and run audit trail — backed by **MongoDB**.
 
+**Credits:** Mark Scott, Eugene Kang, Sara Beddouch, and Peter Do.
+
 ## Stack
 
 | Layer        | Technology                                      |
