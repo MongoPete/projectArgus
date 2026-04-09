@@ -4,6 +4,24 @@ Web showcase for **MongoDB Database Agents (MDBA)**: configurable workloads, Lan
 
 **Credits:** Mark Scott, Eugene Kang, Sara Beddouch, and Peter Do.
 
+## Quick start
+
+**Option A — Local** (requires Python 3.9+, Node 18+):
+
+```bash
+git clone https://github.com/MongoPete/projectArgus.git && cd projectArgus
+./start.sh
+```
+
+**Option B — Docker** (requires Docker only):
+
+```bash
+git clone https://github.com/MongoPete/projectArgus.git && cd projectArgus
+docker compose up
+```
+
+Then open **http://localhost:5173**. The app auto-seeds demo data on first launch. Use the **Settings** page to connect to an Atlas cluster, or it defaults to local MongoDB.
+
 ## Stack
 
 | Layer        | Technology                                      |
