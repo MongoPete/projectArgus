@@ -71,8 +71,8 @@ export function WorkflowNew() {
       </button>
       <h1 className="text-2xl font-semibold text-white">New workflow</h1>
       <p className="text-slate-400 text-sm">
-        Compose agent steps. The API persists this document in MongoDB; LangGraph runs ingest → analyze →
-        synthesize → deliver on each execution.
+        Select analysis steps and save. Each run collects data, analyzes it, ranks findings by impact, 
+        and delivers results to your inbox.
       </p>
 
       <form onSubmit={submit} className="space-y-6 glass rounded-xl p-6">

@@ -71,7 +71,7 @@ Use this section when demoing or pitching so claims stay accurate.
 
 ## What to demo
 
-1. **Ask** (`/assistant`) — **Chat** tab: NLP advisor to draft agent **workflows**. **Flow builder** tab (`/assistant/flow`): Airflow-style **tool graph** (Atlas API, MongoDB, MDBA, Slack, Email), per-node **prompts**, **prior-step memory** toggle, **mock flow-runner** log, save/load flows in MongoDB (`/api/flows`). With `OPENAI_API_KEY`, chat uses **gpt-4o-mini** + structured output; otherwise a **heuristic** assistant for demos.
+1. **Ask** (`/assistant`) — **Agents** tab: NLP advisor to draft **workflows**. **Tools** tab (`/assistant/flow`): full-height **DAG workshop** (Eugene-style dark UI: 300px tool nodes, indigo edges, dot grid, collapsible palette, resizable terminal). The right **terminal** is a real shell: type `help`, `list`, `edges`, `clear`, `run`, `abort`. **`run`** (and the header Run button) stream **NDJSON** from `POST /api/flows/run/stream` so log lines appear as the mock runner emits them (`state` JSON per step + headings / code / JSON). Save/load flows in MongoDB (`/api/flows`). With `OPENAI_API_KEY`, Agents use **gpt-4o-mini** + structured output; otherwise **heuristic** demos.
 2. **Build** (`/builder`) — **Simple** low-code path first: pick what to watch (costs, speed, backups, …), how often, optional name → **Create workflow**. **Custom workflow** opens the full editor (palette, flow map with optional minimap, step inspector). Inspired by calm “consumer-grade” admin UIs (e.g. Glean-style simplicity).
 3. **Dashboard** (`/dashboard`) — counts, TCO hints, link into workloads.
 4. **Workflows** — seed workloads; **Run now** executes the LangGraph pipeline and writes **findings**.

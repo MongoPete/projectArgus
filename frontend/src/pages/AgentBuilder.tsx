@@ -255,8 +255,8 @@ export function AgentBuilder() {
           </Link>
           <h1 className="text-2xl font-semibold text-white tracking-tight mt-4">Create a workflow</h1>
           <p className="text-slate-400 text-[15px] leading-relaxed mt-2">
-            Choose what to watch on Atlas. We’ll turn it into a saved workflow you can run anytime — no wiring
-            required.
+            Choose what to monitor across your clusters. MDBA creates an automated workflow
+            you can run anytime — no manual configuration required.
           </p>
         </div>
 
@@ -266,7 +266,7 @@ export function AgentBuilder() {
           </div>
         )}
 
-        <section className="space-y-3">
+        <section className="space-y-3" data-tour="outcomes">
           <h2 className="text-sm font-medium text-white">What should we watch?</h2>
           <p className="text-xs text-slate-500">Select one or more. You can refine later.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -365,11 +365,15 @@ export function AgentBuilder() {
           </button>
         </div>
 
-        <p className="text-center text-xs text-slate-600">
-          <Link to="/assistant" className="text-slate-500 hover:text-mdb-leaf">
-            Prefer to describe it in chat?
+        <div className="flex flex-wrap justify-center gap-4 text-xs text-slate-500 pt-2">
+          <Link to="/advisor" className="hover:text-mdb-leaf transition-colors">
+            Describe in chat instead
           </Link>
-        </p>
+          <span className="text-slate-700">|</span>
+          <Link to="/advisor/flow" className="hover:text-indigo-300 transition-colors">
+            Visual flow editor
+          </Link>
+        </div>
       </div>
     );
   }
@@ -387,15 +391,14 @@ export function AgentBuilder() {
           </button>
           <h1 className="text-2xl font-semibold text-white tracking-tight mt-3">Custom workflow</h1>
           <p className="text-slate-400 text-sm mt-1 max-w-xl">
-            Reorder steps, open the map, tune parameters. Changes stay human-approved before any write to the
-            cluster.
+            Reorder steps, tune parameters, view the flow map. Any cluster changes require your approval.
           </p>
         </div>
         <Link
-          to="/assistant"
+          to="/advisor"
           className="text-xs rounded-2xl border border-mdb-leaf/20 px-3 py-2 text-slate-500 hover:text-mdb-leaf hover:border-mdb-leaf/30"
         >
-          Chat instead
+          Use chat advisor
         </Link>
       </div>
 

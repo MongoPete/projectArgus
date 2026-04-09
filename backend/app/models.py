@@ -92,6 +92,11 @@ class RunRecord(BaseModel):
     error: Optional[str] = None
 
 
+class ReasoningStep(BaseModel):
+    role: Literal["agent", "data", "tool", "conclusion"]
+    content: str
+
+
 class Finding(BaseModel):
     id: str
     run_id: str
@@ -104,6 +109,16 @@ class Finding(BaseModel):
     estimated_monthly_savings_usd: Optional[float] = None
     evidence: dict[str, Any] = Field(default_factory=dict)
     recommendations: list[str] = Field(default_factory=list)
+    reasoning_trace: list[ReasoningStep] = Field(default_factory=list)
+    created_at: datetime
+
+
+class FindingPreview(BaseModel):
+    id: str
+    title: str
+    severity: FindingSeverity
+    agent: AgentType
+    estimated_monthly_savings_usd: Optional[float] = None
     created_at: datetime
 
 
@@ -112,8 +127,11 @@ class DashboardSummary(BaseModel):
     high_or_critical_findings: int
     runs_last_7d: int
     workflows_active: int
-    spend_delta_pct_hint: Optional[float] = None
-    cost_drivers_hint: list[str] = Field(default_factory=list)
+    total_addressable_savings_usd: float
+    spend_delta_pct: Optional[float] = None
+    cost_drivers: list[str] = Field(default_factory=list)
+    top_findings: list[FindingPreview] = Field(default_factory=list)
+    clusters_monitored: int = 0
 
 
 class ChatMessageIn(BaseModel):

@@ -105,7 +105,7 @@ export function Assistant() {
       <header className="shrink-0 mb-4">
         <h1 className="text-2xl font-semibold text-white">Atlas Advisor</h1>
         <p className="text-slate-400 text-sm mt-1">
-          Natural language to **workflow drafts** — MongoDB Atlas–aware, HITL-first.
+          Describe what you need in plain language — the advisor drafts a workflow you can save and run.
           {lastSource && (
             <span className="ml-2 text-xs text-slate-500">
               Last reply:{" "}
@@ -117,7 +117,7 @@ export function Assistant() {
         </p>
       </header>
 
-      <div className="flex-1 min-h-[22rem] max-h-[55vh] overflow-y-auto glass rounded-xl p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-[22rem] max-h-[55vh] overflow-y-auto glass rounded-xl p-4 flex flex-col gap-4" data-tour="chat">
         {messages.map((m, i) => (
           <div
             key={i}
@@ -225,8 +225,8 @@ export function Assistant() {
         </form>
         <p className="text-center text-xs text-slate-600 pt-2">
           Need tool-by-tool control?{" "}
-          <Link to="/assistant/flow" className="text-slate-500 hover:text-mdb-leaf">
-            Open Flow builder
+          <Link to="/advisor/flow" className="text-slate-500 hover:text-indigo-300">
+            Open flow editor
           </Link>
         </p>
       </div>

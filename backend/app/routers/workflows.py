@@ -70,4 +70,6 @@ async def delete_workflow(workflow_id: str, db: AsyncIOMotorDatabase = Depends(g
     res = await db.workflows.delete_one({"_id": workflow_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Workflow not found")
+    await db.runs.delete_many({"workflow_id": workflow_id})
+    await db.findings.delete_many({"workflow_id": workflow_id})
     return {"ok": True}

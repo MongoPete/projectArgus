@@ -10,11 +10,15 @@ const paths = [
     accent: "from-mdb-leaf/15 to-transparent",
   },
   {
-    title: "Ask & tool flows",
-    subtitle: "Natural-language drafts plus an Airflow-style tool graph (mock runner).",
-    bullets: ["Chat tab: workflow JSON from prompts", "Flow builder: Atlas API, MongoDB, Slack, Email nodes", "~20% power-user path; steps are simulated in POC"],
-    primary: { to: "/assistant", label: "Open Ask" },
-    secondary: { to: "/assistant/flow", label: "Flow builder" },
+    title: "Agents & Tools workshop",
+    subtitle: "Agentic chat for drafts, then a full-screen DAG builder for tool chains (mock runner).",
+    bullets: [
+      "Agents: natural-language workflow JSON",
+      "Tools: Eugene-style canvas — 300px nodes, indigo edges, terminal log",
+      "Advanced lane; execution simulated in POC",
+    ],
+    primary: { to: "/assistant", label: "Open Agents" },
+    secondary: { to: "/assistant/flow", label: "Tools workshop" },
     accent: "from-mdb-forest/80 to-transparent",
   },
 ] as const;

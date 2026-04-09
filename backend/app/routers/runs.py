@@ -83,6 +83,7 @@ async def run_workflow(workflow_id: str, db: AsyncIOMotorDatabase = Depends(get_
                     "estimated_monthly_savings_usd": f.get("estimated_monthly_savings_usd"),
                     "evidence": f.get("evidence") or {},
                     "recommendations": f.get("recommendations") or [],
+                    "reasoning_trace": f.get("reasoning_trace") or [],
                     "created_at": completed,
                 }
             )

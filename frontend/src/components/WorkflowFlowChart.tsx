@@ -118,7 +118,7 @@ function buildElements(
 
   chain.push(
     { id: "synthesize", kind: "platform", label: "Synthesize", sub: "Rank · severity · TCO" },
-    { id: "deliver", kind: "platform", label: "Deliver", sub: "Findings · HITL · channels" }
+    { id: "deliver", kind: "platform", label: "Deliver", sub: "Findings · approval · channels" }
   );
 
   const nodes: Node[] = chain.map((item, i) => {

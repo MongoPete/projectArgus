@@ -23,11 +23,11 @@ export function Runs() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="runs">
       <div>
         <h1 className="text-2xl font-semibold text-white">Run history</h1>
         <p className="text-slate-400 mt-1">
-          Audit trail of LangGraph executions: ingest → analyze → synthesize → deliver.
+          Full audit trail of every automated analysis — what ran, when, and what it found.
         </p>
       </div>
 

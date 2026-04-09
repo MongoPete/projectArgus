@@ -51,6 +51,11 @@ export interface RunRecord {
   error: string | null;
 }
 
+export interface ReasoningStep {
+  role: "agent" | "data" | "tool" | "conclusion";
+  content: string;
+}
+
 export interface Finding {
   id: string;
   run_id: string;
@@ -63,6 +68,16 @@ export interface Finding {
   estimated_monthly_savings_usd: number | null;
   evidence: Record<string, unknown>;
   recommendations: string[];
+  reasoning_trace: ReasoningStep[];
+  created_at: string;
+}
+
+export interface FindingPreview {
+  id: string;
+  title: string;
+  severity: FindingSeverity;
+  agent: AgentType;
+  estimated_monthly_savings_usd: number | null;
   created_at: string;
 }
 
@@ -71,8 +86,11 @@ export interface DashboardSummary {
   high_or_critical_findings: number;
   runs_last_7d: number;
   workflows_active: number;
-  spend_delta_pct_hint: number | null;
-  cost_drivers_hint: string[];
+  total_addressable_savings_usd: number;
+  spend_delta_pct: number | null;
+  cost_drivers: string[];
+  top_findings: FindingPreview[];
+  clusters_monitored: number;
 }
 
 export type ChatRole = "user" | "assistant" | "system";

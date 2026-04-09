@@ -7,6 +7,7 @@ export function Workflows() {
   const [items, setItems] = useState<Workflow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api.workflows
@@ -32,6 +33,19 @@ export function Workflows() {
     }
   }
 
+  async function deleteOne(wf: Workflow) {
+    if (!confirm(`Delete "${wf.name}" and all its runs and findings?`)) return;
+    setDeletingId(wf.id);
+    try {
+      await api.workflows.delete(wf.id);
+      load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (err && items.length === 0) {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
@@ -41,17 +55,17 @@ export function Workflows() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="workflows">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">Workflows</h1>
           <p className="text-slate-400 mt-1">
-            Build agent chains: triggers → analysis steps → findings. Writes stay behind HITL.
+            Automated monitoring pipelines. Each workflow watches your clusters and reports findings — write operations always require your approval.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            to="/builder"
+            to="/create"
             className="rounded-xl border border-mdb-leaf/30 text-slate-200 px-4 py-2.5 text-sm font-medium hover:bg-mdb-leaf/10"
           >
             New workflow
@@ -85,7 +99,7 @@ export function Workflows() {
                 </span>
                 {w.hitl_writes && (
                   <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-mdb-leaf/40 text-mdb-leaf">
-                    HITL writes
+                    Human approval
                   </span>
                 )}
               </div>
@@ -110,6 +124,15 @@ export function Workflows() {
               >
                 View
               </Link>
+              <button
+                type="button"
+                disabled={deletingId === w.id}
+                onClick={() => deleteOne(w)}
+                className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-400/70 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 transition-colors"
+                title="Delete workflow"
+              >
+                ✕
+              </button>
             </div>
           </div>
         ))}
