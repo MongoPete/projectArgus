@@ -254,13 +254,14 @@ export function Workflows() {
   }
 
   return (
-    <PageContainer className="space-y-6" data-tour="workflows">
+    <PageContainer className="space-y-6">
       {/* Header */}
       <PageHeader
         title="Workflows"
         actions={
           <Link
             to="/workflows/new"
+            data-tour="create-btn"
             className="rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] hover:shadow-[0_0_25px_rgba(0,237,100,0.4)] transition-all"
           >
             + Create workflow
@@ -282,7 +283,7 @@ export function Workflows() {
       />
 
       {/* Workflow cards */}
-      <div className="space-y-2">
+      <div className="space-y-2" data-tour="workflows">
         {filteredItems.length === 0 && (
           <Card className="p-8 text-center">
             <p className="text-[#889397] mb-4">No workflows yet.</p>

@@ -333,13 +333,14 @@ function ChatPanel({
 
       {/* Starters and input */}
       <div className="shrink-0 mt-4 space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {STARTERS.map((s) => (
+        <div className="flex flex-wrap gap-2" data-tour="chat-starters">
+          {STARTERS.map((s, i) => (
             <button
               key={s}
               type="button"
               disabled={loading}
               onClick={() => send(s)}
+              data-tour={i === 0 ? "chat-starter-0" : undefined}
               className="text-xs rounded-full border border-mdb-leaf/25 px-3 py-1.5 text-slate-300 hover:bg-mdb-leaf/10 hover:border-mdb-leaf/50 disabled:opacity-40"
             >
               {s}
@@ -478,10 +479,15 @@ function FlowEditorPanel() {
 export function WorkflowNew() {
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialMode = (searchParams.get("mode") as CreateMode) || "templates";
+  const urlMode = (searchParams.get("mode") as CreateMode) || "templates";
 
-  const [mode, setMode] = useState<CreateMode>(initialMode);
+  const [mode, setMode] = useState<CreateMode>(urlMode);
   const [step, setStep] = useState(1); // 1 = monitors, 2 = configure, 3 = review
+
+  // Sync mode with URL query param
+  useEffect(() => {
+    setMode(urlMode);
+  }, [urlMode]);
   const [selectedMonitors, setSelectedMonitors] = useState<Set<AgentType>>(new Set());
   const [schedule, setSchedule] = useState<SchedulePreset>("manual");
   const [selectedClusters, setSelectedClusters] = useState<Set<string>>(
@@ -563,7 +569,7 @@ export function WorkflowNew() {
 
   // Mode switcher component
   const ModeToggle = () => (
-    <div className="bg-mdb-slate rounded-lg p-0.5 flex">
+    <div className="bg-mdb-slate rounded-lg p-0.5 flex" data-tour="create-modes">
       {(["templates", "chat", "editor"] as CreateMode[]).map((m) => (
         <button
           key={m}
@@ -713,7 +719,7 @@ export function WorkflowNew() {
 
           {/* Step 1: What to watch */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-4" data-tour="outcomes">
               <h2 className="text-lg font-medium text-white">What should we watch?</h2>
               <div className="grid grid-cols-2 gap-3">
                 {MONITOR_CATEGORIES.map((cat) => {
@@ -891,6 +897,7 @@ export function WorkflowNew() {
 
       {/* CHAT MODE */}
       {mode === "chat" && (
+        <div data-tour="chat-panel">
         <ChatPanel
           onSwitchToEditor={() => setMode("editor")}
           onSwitchToTemplates={(payload) => {
@@ -900,10 +907,15 @@ export function WorkflowNew() {
             setMode("templates");
           }}
         />
+        </div>
       )}
 
       {/* EDITOR MODE */}
-      {mode === "editor" && <FlowEditorPanel />}
+      {mode === "editor" && (
+        <div data-tour="editor-panel">
+          <FlowEditorPanel />
+        </div>
+      )}
     </div>
   );
 }

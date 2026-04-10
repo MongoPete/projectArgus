@@ -1116,7 +1116,9 @@ export function Findings() {
     <PageContainer>
       {/* Page header (only show in list view) */}
       {!selectedFinding && (
-        <PageHeader title="Findings" className="mb-7" />
+        <div data-tour="findings-summary">
+          <PageHeader title="Findings" className="mb-7" />
+        </div>
       )}
 
       {selectedFinding ? (
@@ -1128,7 +1130,9 @@ export function Findings() {
           onNavigate={(id) => setSearchParams({ selected: id })}
         />
       ) : (
-        <ListView items={items} onSelect={(id) => setSearchParams({ selected: id })} />
+        <div data-tour="findings-list">
+          <ListView items={items} onSelect={(id) => setSearchParams({ selected: id })} />
+        </div>
       )}
 
       {/* Hidden reset toast */}
