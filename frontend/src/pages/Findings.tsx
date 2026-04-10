@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "@/api";
 import type { Finding, FindingStatus } from "@/types";
+import { Pill, severityToVariant, type PillVariant } from "@/components/Pill";
+import { TabBar, type Tab } from "@/components/TabBar";
+import { PageContainer, PageHeader, TableContainer, TableFooter } from "@/components/PageContainer";
+import { FilterBar, FilterDropdown, SearchInput, FilterSpacer } from "@/components/FilterBar";
 
 // =============================================================================
 // CONSTANTS & HELPERS
@@ -66,85 +70,6 @@ function extractClusterFromFinding(finding: Finding): string {
 }
 
 // =============================================================================
-// ANIMATIONS
-// =============================================================================
-
-const animationStyles = `
-@keyframes mdba-pulse-green {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 0.85; transform: scale(1.1); }
-}
-@keyframes mdba-pulse-red {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.3); }
-}
-
-.dot-crit { animation: mdba-pulse-red 1.8s ease-in-out infinite; transform-origin: center; }
-.live-dot { animation: mdba-pulse-green 2.4s ease-in-out infinite; }
-.find-row { transition: background 0.15s ease; }
-.find-row:hover { background: rgba(255, 255, 255, 0.025); }
-`;
-
-// =============================================================================
-// PILL COMPONENT
-// =============================================================================
-
-type PillVariant = "crit" | "high" | "med" | "low" | "green" | "blue" | "gray" | "scan" | "resolved";
-
-const pillStyles: Record<PillVariant, { color: string; bg: string; border: string }> = {
-  crit: { color: "#FF6960", bg: "rgba(255,105,96,0.08)", border: "rgba(255,105,96,0.3)" },
-  high: { color: "#FF6960", bg: "rgba(255,105,96,0.08)", border: "rgba(255,105,96,0.3)" },
-  med: { color: "#FFC010", bg: "rgba(255,192,16,0.08)", border: "rgba(255,192,16,0.3)" },
-  low: { color: "#889397", bg: "rgba(136,147,151,0.06)", border: "rgba(136,147,151,0.25)" },
-  green: { color: "#00ED64", bg: "rgba(0,237,100,0.08)", border: "rgba(0,237,100,0.3)" },
-  blue: { color: "#3D9CFF", bg: "rgba(61,156,255,0.08)", border: "rgba(61,156,255,0.3)" },
-  gray: { color: "#889397", bg: "rgba(255,255,255,0.04)", border: "#1C2D38" },
-  scan: { color: "#00ED64", bg: "rgba(0,237,100,0.08)", border: "rgba(0,237,100,0.3)" },
-  resolved: { color: "#00ED64", bg: "rgba(0,237,100,0.08)", border: "rgba(0,237,100,0.3)" },
-};
-
-function severityToPill(severity: string, status?: string): PillVariant {
-  if (status === "approved" || status === "dismissed") return "resolved";
-  if (severity === "critical") return "crit";
-  if (severity === "high") return "high";
-  if (severity === "medium") return "med";
-  return "low";
-}
-
-function Pill({ variant, children, large }: { variant: PillVariant; children: React.ReactNode; large?: boolean }) {
-  const s = pillStyles[variant];
-  const isScan = variant === "scan";
-  return (
-    <span
-      style={{
-        fontSize: large ? 12 : 11,
-        padding: large ? "6px 14px" : "4px 10px",
-        borderRadius: large ? 5 : 4,
-        letterSpacing: "0.05em",
-        textAlign: "center",
-        fontWeight: 500,
-        textTransform: "uppercase",
-        border: `0.5px solid ${s.border}`,
-        color: s.color,
-        background: s.bg,
-        display: isScan ? "flex" : "inline-block",
-        alignItems: isScan ? "center" : undefined,
-        justifyContent: isScan ? "center" : undefined,
-        gap: isScan ? 6 : undefined,
-      }}
-    >
-      {isScan && (
-        <span
-          className="live-dot"
-          style={{ width: 6, height: 6, borderRadius: "50%", background: "#00ED64" }}
-        />
-      )}
-      {children}
-    </span>
-  );
-}
-
-// =============================================================================
 // ICONS
 // =============================================================================
 
@@ -189,44 +114,36 @@ function EyeIcon() {
   );
 }
 
-// =============================================================================
-// FILTER DROPDOWN
-// =============================================================================
-
-function FilterDropdown({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (val: string) => void;
-}) {
+function DownloadIcon() {
   return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          appearance: "none",
-          background: "transparent",
-          border: "none",
-          color: "#C5CDD3",
-          fontSize: 13,
-          cursor: "pointer",
-          paddingRight: 16,
-        }}
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value} style={{ background: "#001E2B" }}>
-            {label} {opt.label}
-          </option>
-        ))}
-      </select>
-      <span style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", color: "#5C6C75", fontSize: 10, pointerEvents: "none" }}>▾</span>
-    </div>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+    </svg>
+  );
+}
+
+function ChevronDown({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#5C6C75"
+      strokeWidth="2"
+      className={`transition-transform ${open ? "rotate-180" : ""}`}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
+    </svg>
   );
 }
 
@@ -243,14 +160,14 @@ function AnomalyChart({ finding }: { finding: Finding }) {
     : "2:47 AM";
 
   return (
-    <div style={{ marginTop: 40 }}>
-      <svg viewBox="0 0 900 140" style={{ width: "100%", height: 140 }}>
+    <div className="mt-10">
+      <svg viewBox="0 0 900 140" className="w-full h-[140px]">
         {/* Gridlines */}
         <line x1="0" y1="35" x2="900" y2="35" stroke="#0E2230" strokeWidth="0.5" />
         <line x1="0" y1="70" x2="900" y2="70" stroke="#0E2230" strokeWidth="0.5" />
         <line x1="0" y1="105" x2="900" y2="105" stroke="#0E2230" strokeWidth="0.5" />
 
-        {/* Baseline (blue) - clear and prominent */}
+        {/* Baseline (blue) */}
         <polyline
           points="0,108 150,107 300,109 400,108 500,107 600,108 750,109 850,108 900,107"
           fill="none"
@@ -258,7 +175,7 @@ function AnomalyChart({ finding }: { finding: Finding }) {
           strokeWidth="2"
         />
 
-        {/* Anomaly spike area - increased opacity */}
+        {/* Anomaly spike area */}
         <polygon
           points="400,108 430,100 470,75 500,25 530,32 570,70 610,95 650,108 400,108"
           fill="#FF6960"
@@ -273,7 +190,7 @@ function AnomalyChart({ finding }: { finding: Finding }) {
           strokeWidth="2"
         />
 
-        {/* Peak dot - 4px radius */}
+        {/* Peak dot */}
         <circle cx="500" cy="25" r="4" fill="#FF6960" />
 
         {/* Annotation line */}
@@ -310,36 +227,23 @@ function SavingsCallout({ finding }: { finding: Finding }) {
   const yearly = monthly * 12;
 
   return (
-    <div
-      style={{
-        marginTop: 40,
-        background: "linear-gradient(135deg, rgba(0,237,100,0.06) 0%, rgba(0,237,100,0.01) 100%)",
-        border: "0.5px solid rgba(0,237,100,0.2)",
-        borderRadius: 12,
-        padding: "28px 36px",
-      }}
-    >
-      <div style={{ fontSize: 11, color: "#5C6C75", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>
+    <div className="mt-10 bg-gradient-to-br from-mdb-leaf/[0.06] to-mdb-leaf/[0.01] border-[0.5px] border-mdb-leaf/20 rounded-xl p-7">
+      <div className="text-[11px] text-[#5C6C75] tracking-wider uppercase mb-4">
         ADDRESSABLE SAVINGS
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 32 }}>
-        {/* Monthly */}
+      <div className="flex items-baseline gap-8">
         <div>
-          <div style={{ fontSize: 40, fontWeight: 600, color: "#00ED64", lineHeight: 1.1 }}>
+          <div className="text-[40px] font-semibold text-mdb-leaf leading-tight">
             ${monthly.toLocaleString()}
           </div>
-          <div style={{ fontSize: 13, color: "#5C6C75", marginTop: 4 }}>per month</div>
+          <div className="text-[13px] text-[#5C6C75] mt-1">per month</div>
         </div>
-
-        {/* Vertical divider */}
-        <div style={{ width: 1, height: 48, background: "rgba(0,237,100,0.2)" }} />
-
-        {/* Annual */}
+        <div className="w-px h-12 bg-mdb-leaf/20" />
         <div>
-          <div style={{ fontSize: 40, fontWeight: 600, color: "#FFFFFF", lineHeight: 1.1 }}>
+          <div className="text-[40px] font-semibold text-white leading-tight">
             ${yearly.toLocaleString()}
           </div>
-          <div style={{ fontSize: 13, color: "#5C6C75", marginTop: 4 }}>per year</div>
+          <div className="text-[13px] text-[#5C6C75] mt-1">per year</div>
         </div>
       </div>
     </div>
@@ -347,7 +251,7 @@ function SavingsCallout({ finding }: { finding: Finding }) {
 }
 
 // =============================================================================
-// CURATED INSIGHTS (replaces raw reasoning trail)
+// CURATED INSIGHTS
 // =============================================================================
 
 function generateDefaultInsights(category: FindingCategory): { title: string; detail: string }[] {
@@ -391,40 +295,14 @@ function generateDefaultInsights(category: FindingCategory): { title: string; de
   }
 }
 
-function DownloadIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-    </svg>
-  );
-}
-
-function ChevronDown({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#5C6C75"
-      strokeWidth="2"
-      style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
-
 function CuratedInsights({ finding }: { finding: Finding }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const category = getCategoryType(finding.agent);
 
-  // Get 3 key insights only - conclusion plus 2 key analysis steps
   const insights = useMemo(() => {
     if (finding.reasoning_trace && finding.reasoning_trace.length > 0) {
       const conclusion = finding.reasoning_trace.find((s) => s.role === "conclusion");
       const agentSteps = finding.reasoning_trace.filter((s) => s.role === "agent");
-      // Take first agent step, one from middle, and conclusion
       const selected = [
         agentSteps[0],
         agentSteps[Math.floor(agentSteps.length / 2)],
@@ -457,93 +335,44 @@ function CuratedInsights({ finding }: { finding: Finding }) {
   };
 
   return (
-    <div style={{ marginTop: 32 }}>
-      {/* Collapsed header */}
+    <div className="mt-8">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-          padding: "12px 14px",
-          background: isExpanded ? "rgba(61,156,255,0.04)" : "transparent",
-          border: isExpanded ? "0.5px solid rgba(61,156,255,0.2)" : "0.5px solid #1C2D38",
-          borderRadius: 8,
-          cursor: "pointer",
-          textAlign: "left",
-          transition: "all 0.15s",
-        }}
+        className={`flex items-center gap-3 w-full p-3.5 rounded-lg border-[0.5px] cursor-pointer text-left transition-all ${
+          isExpanded
+            ? "bg-[#3D9CFF]/[0.04] border-[#3D9CFF]/20"
+            : "bg-transparent border-[#1C2D38] hover:border-[#3D9CFF]/20"
+        }`}
       >
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            background: "rgba(61,156,255,0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#3D9CFF",
-          }}
-        >
+        <div className="w-7 h-7 rounded-md bg-[#3D9CFF]/10 flex items-center justify-center text-[#3D9CFF]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 16v-4M12 8h.01" />
           </svg>
         </div>
-        <span style={{ flex: 1, fontSize: 13, color: isExpanded ? "#C5CDD3" : "#889397" }}>
+        <span className={`flex-1 text-[13px] ${isExpanded ? "text-[#C5CDD3]" : "text-[#889397]"}`}>
           {isExpanded ? "Analysis trace" : "Analysis steps - click to see how MDBA reached this conclusion"}
         </span>
         <ChevronDown open={isExpanded} />
       </button>
 
-      {/* Expanded - timeline view */}
       {isExpanded && (
-        <div style={{ marginTop: 16, marginLeft: 14, paddingLeft: 20, borderLeft: "2px solid rgba(61,156,255,0.2)" }}>
+        <div className="mt-4 ml-3.5 pl-5 border-l-2 border-[#3D9CFF]/20">
           {insights.slice(0, 3).map((content, i) => (
-            <div
-              key={i}
-              style={{
-                position: "relative",
-                paddingBottom: i < insights.length - 1 ? 20 : 0,
-              }}
-            >
-              {/* Timeline dot */}
+            <div key={i} className={`relative ${i < insights.length - 1 ? "pb-5" : ""}`}>
               <div
-                style={{
-                  position: "absolute",
-                  left: -26,
-                  top: 4,
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: i === insights.length - 1 ? "#00ED64" : "#3D9CFF",
-                  border: "2px solid #001E2B",
-                }}
+                className={`absolute -left-[26px] top-1 w-2.5 h-2.5 rounded-full border-2 border-[#001E2B] ${
+                  i === insights.length - 1 ? "bg-mdb-leaf" : "bg-[#3D9CFF]"
+                }`}
               />
-              <p style={{ fontSize: 13, color: "#C5CDD3", lineHeight: 1.6, margin: 0 }}>
-                {content}
-              </p>
+              <p className="text-[13px] text-[#C5CDD3] leading-relaxed">{content}</p>
             </div>
           ))}
 
-          {/* Download link */}
           {totalSteps > 0 && (
             <button
               onClick={handleDownload}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                marginTop: 16,
-                padding: 0,
-                background: "transparent",
-                border: "none",
-                color: "#5C6C75",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="flex items-center gap-1.5 mt-4 text-xs text-[#5C6C75] hover:text-[#889397] transition-colors"
             >
               <DownloadIcon />
               <span>Full trace ({totalSteps} steps)</span>
@@ -576,89 +405,40 @@ function ConfirmationModal({
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.7)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]"
       onClick={onCancel}
     >
       <div
-        style={{
-          background: "#001E2B",
-          border: "0.5px solid #1C2D38",
-          borderRadius: 12,
-          padding: 32,
-          maxWidth: 520,
-          width: "90%",
-        }}
+        className="bg-[#001E2B] border-[0.5px] border-[#1C2D38] rounded-xl p-8 max-w-[520px] w-[90%]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 11, color: "#5C6C75", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
+        <div className="text-[11px] text-[#5C6C75] tracking-wider uppercase mb-3">
           CONFIRM ACTION
         </div>
-        <h3 style={{ fontSize: 20, color: "#FFFFFF", fontWeight: 500, margin: "0 0 20px 0" }}>
-          {actionLabel}
-        </h3>
+        <h3 className="text-xl text-white font-medium mb-5">{actionLabel}</h3>
 
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, color: "#5C6C75", marginBottom: 8 }}>Target cluster</div>
-          <div style={{ fontSize: 14, color: "#FFFFFF", fontFamily: "ui-monospace, monospace" }}>
-            {cluster}
-          </div>
+        <div className="mb-5">
+          <div className="text-xs text-[#5C6C75] mb-2">Target cluster</div>
+          <div className="text-sm text-white font-mono">{cluster}</div>
         </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, color: "#5C6C75", marginBottom: 8 }}>Operation</div>
-          <div
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "0.5px solid #1C2D38",
-              borderRadius: 6,
-              padding: "12px 14px",
-              fontSize: 13,
-              fontFamily: "ui-monospace, monospace",
-              color: "#C5CDD3",
-              lineHeight: 1.5,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-            }}
-          >
+        <div className="mb-6">
+          <div className="text-xs text-[#5C6C75] mb-2">Operation</div>
+          <div className="bg-black/30 border-[0.5px] border-[#1C2D38] rounded-md p-3.5 text-[13px] font-mono text-[#C5CDD3] leading-relaxed whitespace-pre-wrap break-all">
             {command}
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+        <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            style={{
-              padding: "10px 20px",
-              background: "transparent",
-              border: "0.5px solid #1C2D38",
-              borderRadius: 6,
-              color: "#889397",
-              fontSize: 14,
-              cursor: "pointer",
-            }}
+            className="px-5 py-2.5 bg-transparent border-[0.5px] border-[#1C2D38] rounded-md text-[#889397] text-sm hover:bg-white/[0.02] transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            style={{
-              padding: "10px 20px",
-              background: "#00ED64",
-              border: "none",
-              borderRadius: 6,
-              color: "#001E2B",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
+            className="px-5 py-2.5 bg-mdb-leaf border-none rounded-md text-[#001E2B] text-sm font-medium hover:bg-mdb-leaf/90 transition-colors"
           >
             Confirm
           </button>
@@ -669,7 +449,7 @@ function ConfirmationModal({
 }
 
 // =============================================================================
-// DECISION SECTION (standardized 3-action pattern)
+// DECISION SECTION
 // =============================================================================
 
 function getPrimaryAction(finding: Finding, category: FindingCategory): { label: string; command: string } {
@@ -736,8 +516,8 @@ function DecisionSection({
     {
       id: "primary",
       icon: <CheckIcon />,
-      iconBg: "rgba(0,237,100,0.15)",
-      iconColor: "#00ED64",
+      iconBg: "bg-mdb-leaf/15",
+      iconColor: "text-mdb-leaf",
       title: primaryAction.label,
       description: "Execute the recommended action",
       isPrimary: true,
@@ -746,8 +526,8 @@ function DecisionSection({
     {
       id: "review",
       icon: <EyeIcon />,
-      iconBg: "rgba(136,147,151,0.1)",
-      iconColor: "#889397",
+      iconBg: "bg-[#889397]/10",
+      iconColor: "text-[#889397]",
       title: "Review in Atlas",
       description: "Open cluster in MongoDB Atlas",
       isPrimary: false,
@@ -756,8 +536,8 @@ function DecisionSection({
     {
       id: "dismiss",
       icon: <XIcon />,
-      iconBg: "rgba(136,147,151,0.1)",
-      iconColor: "#889397",
+      iconBg: "bg-[#889397]/10",
+      iconColor: "text-[#889397]",
       title: "Dismiss",
       description: "Not applicable or will handle manually",
       isPrimary: false,
@@ -766,11 +546,11 @@ function DecisionSection({
   ];
 
   return (
-    <div style={{ marginTop: 32 }}>
-      <div style={{ fontSize: 11, color: "#5C6C75", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
+    <div className="mt-8">
+      <div className="text-[11px] text-[#5C6C75] tracking-wider uppercase mb-3.5">
         YOUR CALL
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex flex-col gap-2.5">
         {actions.map((action) => {
           const isCompleted = completedAction === action.id;
           const isDisabled = completedAction !== null && !isCompleted;
@@ -780,54 +560,31 @@ function DecisionSection({
               key={action.id}
               onClick={() => !isDisabled && action.onClick()}
               disabled={isDisabled}
-              style={{
-                width: "100%",
-                padding: "16px 18px",
-                border: isCompleted
-                  ? "0.5px solid rgba(0,237,100,0.4)"
+              className={`w-full p-4 border-[0.5px] rounded-lg flex items-center gap-3.5 text-left transition-all ${
+                isCompleted
+                  ? "border-mdb-leaf/40 bg-mdb-leaf/[0.08]"
                   : action.isPrimary
-                  ? "0.5px solid rgba(0,237,100,0.3)"
-                  : "0.5px solid #1C2D38",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                cursor: isDisabled ? "default" : "pointer",
-                transition: "all 0.15s",
-                background: isCompleted
-                  ? "rgba(0,237,100,0.08)"
-                  : action.isPrimary
-                  ? "rgba(0,237,100,0.04)"
-                  : "transparent",
-                textAlign: "left",
-                opacity: isDisabled ? 0.4 : 1,
-              }}
+                    ? "border-mdb-leaf/30 bg-mdb-leaf/[0.04] hover:bg-mdb-leaf/[0.08]"
+                    : "border-[#1C2D38] hover:bg-white/[0.02]"
+              } ${isDisabled ? "opacity-40 cursor-default" : "cursor-pointer"}`}
             >
               <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  background: isCompleted ? "rgba(0,237,100,0.15)" : action.iconBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: isCompleted ? "#00ED64" : action.iconColor,
-                  flexShrink: 0,
-                }}
+                className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                  isCompleted ? "bg-mdb-leaf/15 text-mdb-leaf" : `${action.iconBg} ${action.iconColor}`
+                }`}
               >
                 {isCompleted ? <CheckIcon /> : action.icon}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: "#FFFFFF", fontWeight: 500, lineHeight: 1.4 }}>
+              <div className="flex-1">
+                <div className="text-sm text-white font-medium">
                   {isCompleted ? "Done" : action.title}
                 </div>
-                <div style={{ fontSize: 12, color: "#5C6C75", marginTop: 2, lineHeight: 1.4 }}>
+                <div className="text-xs text-[#5C6C75] mt-0.5">
                   {isCompleted ? "Status updated" : action.description}
                 </div>
               </div>
               {!isCompleted && !isDisabled && (
-                <span style={{ color: action.isPrimary ? "#00ED64" : "#5C6C75", fontSize: 16 }}>→</span>
+                <span className={`text-base ${action.isPrimary ? "text-mdb-leaf" : "text-[#5C6C75]"}`}>→</span>
               )}
             </button>
           );
@@ -838,29 +595,8 @@ function DecisionSection({
 }
 
 // =============================================================================
-// NARRATIVE - renders finding.summary directly
-// =============================================================================
-
-function Narrative({ finding }: { finding: Finding }) {
-  return (
-    <p style={{ fontSize: 16, color: "#C5CDD3", lineHeight: 1.8, margin: 0 }}>
-      {finding.summary}
-    </p>
-  );
-}
-
-// =============================================================================
 // DETAIL VIEW
 // =============================================================================
-
-function HelpIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
-    </svg>
-  );
-}
 
 function DetailView({
   finding,
@@ -887,17 +623,15 @@ function DetailView({
   const total = openFindings.length;
   const primaryAction = getPrimaryAction(finding, category);
 
-  // Reset state when finding changes
   useEffect(() => {
     setCompletedAction(null);
     setLocalStatus(finding.status);
     setShowConfirmation(false);
   }, [finding.id, finding.status]);
 
-  // Keyboard navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (showConfirmation) return; // Don't navigate while modal is open
+      if (showConfirmation) return;
       if (e.key === "j" && currentIndex < total - 1) {
         onNavigate(openFindings[currentIndex + 1].id);
       }
@@ -924,11 +658,10 @@ function DetailView({
     await handleDecision("approved");
   };
 
-  const displayStatus = localStatus === "approved" ? "resolved" : localStatus === "dismissed" ? "dismissed" : finding.severity;
+  const pillVariant: PillVariant = localStatus === "approved" || localStatus === "dismissed" ? "success" : severityToVariant(finding.severity);
 
   return (
     <div>
-      {/* Confirmation Modal */}
       {showConfirmation && (
         <ConfirmationModal
           finding={finding}
@@ -940,128 +673,65 @@ function DetailView({
       )}
 
       {/* Back bar */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 32,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="flex justify-between items-center mb-8">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-mdb-leaf text-sm hover:underline"
+        >
+          <ArrowLeft />
+          All findings
+        </button>
+        <div className="relative">
           <button
-            onClick={onBack}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "transparent",
-              border: "none",
-              color: "#00ED64",
-              fontSize: 14,
-              cursor: "pointer",
-              padding: 0,
-            }}
+            onMouseEnter={() => setShowHelpTooltip(true)}
+            onMouseLeave={() => setShowHelpTooltip(false)}
+            className="w-7 h-7 flex items-center justify-center border-[0.5px] border-[#1C2D38] rounded-md text-[#5C6C75] hover:text-[#889397] transition-colors"
           >
-            <ArrowLeft />
-            All findings
+            <HelpIcon />
           </button>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Help tooltip trigger */}
-          <div style={{ position: "relative" }}>
-            <button
-              onMouseEnter={() => setShowHelpTooltip(true)}
-              onMouseLeave={() => setShowHelpTooltip(false)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                background: "transparent",
-                border: "0.5px solid #1C2D38",
-                borderRadius: 6,
-                color: "#5C6C75",
-                cursor: "pointer",
-              }}
-            >
-              <HelpIcon />
-            </button>
-            {showHelpTooltip && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  right: 0,
-                  marginTop: 8,
-                  padding: "10px 14px",
-                  background: "#0D2436",
-                  border: "0.5px solid #1C2D38",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  color: "#889397",
-                  whiteSpace: "nowrap",
-                  zIndex: 100,
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>
-                  <span style={{ color: "#C5CDD3", fontFamily: "ui-monospace, monospace" }}>J</span> / <span style={{ color: "#C5CDD3", fontFamily: "ui-monospace, monospace" }}>K</span> - Navigate findings
-                </div>
-                <div>
-                  <span style={{ color: "#C5CDD3", fontFamily: "ui-monospace, monospace" }}>Esc</span> - Back to list
-                </div>
+          {showHelpTooltip && (
+            <div className="absolute top-full right-0 mt-2 p-3 bg-[#0D2436] border-[0.5px] border-[#1C2D38] rounded-md text-xs text-[#889397] whitespace-nowrap z-50">
+              <div className="mb-1.5">
+                <span className="text-[#C5CDD3] font-mono">J</span> / <span className="text-[#C5CDD3] font-mono">K</span> - Navigate findings
               </div>
-            )}
-          </div>
+              <div>
+                <span className="text-[#C5CDD3] font-mono">Esc</span> - Back to list
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div>
-        {/* Header */}
-        <div>
-          <Pill variant={severityToPill(displayStatus, localStatus)} large>
-            {localStatus === "approved" ? "Resolved" : localStatus === "dismissed" ? "Dismissed" : finding.severity}
-          </Pill>
-          <h1
-            style={{
-              fontSize: 28,
-              color: "#FFFFFF",
-              fontWeight: 500,
-              lineHeight: 1.3,
-              marginTop: 16,
-              marginBottom: 0,
-            }}
-          >
-            {finding.title}
-          </h1>
-          <div style={{ fontSize: 13, color: "#889397", marginTop: 10, lineHeight: 1.5 }}>
-            <span
-              style={{
-                fontFamily: "ui-monospace, monospace",
-                color: finding.severity === "critical" && localStatus === "new" ? "#FF6960" : "#889397",
-              }}
-            >
-              {cluster}
-            </span>
-            {" · "}
-            {categoryOf(finding.agent).label}
-            {" · "}
-            {timeAgo(finding.created_at)}
-          </div>
+        <Pill variant={pillVariant} size="md">
+          {localStatus === "approved" ? "Resolved" : localStatus === "dismissed" ? "Dismissed" : finding.severity}
+        </Pill>
+        <h1 className="text-[28px] text-white font-medium leading-tight mt-4">
+          {finding.title}
+        </h1>
+        <div className="text-[13px] text-[#889397] mt-2.5">
+          <span className={`font-mono ${finding.severity === "critical" && localStatus === "new" ? "text-[#FF6960]" : ""}`}>
+            {cluster}
+          </span>
+          {" · "}
+          {categoryOf(finding.agent).label}
+          {" · "}
+          {timeAgo(finding.created_at)}
         </div>
 
-        {/* Narrative */}
-        <div style={{ marginTop: 28, maxWidth: 680 }}>
-          <Narrative finding={finding} />
+        {/* Summary */}
+        <div className="mt-7 max-w-[680px]">
+          <p className="text-base text-[#C5CDD3] leading-relaxed">
+            {finding.summary}
+          </p>
         </div>
 
         {/* Chart / Visual */}
         {category === "security" && <AnomalyChart finding={finding} />}
         {category === "cost" && <SavingsCallout finding={finding} />}
 
-        {/* Actions FIRST - above the fold */}
+        {/* Actions */}
         <DecisionSection
           finding={finding}
           onDecision={handleDecision}
@@ -1069,7 +739,7 @@ function DetailView({
           onShowConfirmation={() => setShowConfirmation(true)}
         />
 
-        {/* Reasoning trace - collapsed by default */}
+        {/* Reasoning trace */}
         <CuratedInsights finding={finding} />
       </div>
     </div>
@@ -1121,7 +791,6 @@ function ListView({
     if (filters.category !== "all") {
       result = result.filter((f) => f.agent === filters.category);
     }
-
     if (filters.cluster !== "all") {
       result = result.filter((f) => extractClusterFromFinding(f) === filters.cluster);
     }
@@ -1149,334 +818,188 @@ function ListView({
     return Array.from(set);
   }, [items]);
 
-  const tabStyle = (isActive: boolean) => ({
-    padding: "14px 18px",
-    fontSize: 14,
-    color: isActive ? "#FFFFFF" : "#889397",
-    background: "transparent",
-    border: "none",
-    borderBottom: isActive ? "2px solid #00ED64" : "2px solid transparent",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  });
+  const tabs: Tab<StatusTab>[] = [
+    { key: "open", label: "Open", count: openItems.length, countVariant: "warning" },
+    { key: "snoozed", label: "Snoozed", count: snoozedCount },
+    { key: "resolved", label: "Resolved", count: resolvedCount },
+    { key: "dismissed", label: "Dismissed", count: dismissedCount },
+  ];
+
+  const gridCols = "16px 85px minmax(0,1fr) 100px 130px 16px";
 
   return (
-    <div>
-      <div
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "0.5px solid #112733",
-          borderRadius: 12,
-        }}
-      >
-        {/* Status tabs */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: "0.5px solid #0E2230",
-            padding: "0 24px",
-          }}
-        >
-          <div style={{ display: "flex" }}>
-            <button style={tabStyle(activeTab === "open")} onClick={() => setActiveTab("open")}>
-              Open
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  background: "rgba(255,105,96,0.1)",
-                  color: "#FF6960",
-                  border: "0.5px solid rgba(255,105,96,0.3)",
-                }}
-              >
-                {openItems.length}
-              </span>
-            </button>
-            <button style={tabStyle(activeTab === "snoozed")} onClick={() => setActiveTab("snoozed")}>
-              Snoozed
-              <span style={{ fontSize: 11, color: "#5C6C75" }}>{snoozedCount}</span>
-            </button>
-            <button style={tabStyle(activeTab === "resolved")} onClick={() => setActiveTab("resolved")}>
-              Resolved
-              <span style={{ fontSize: 11, color: "#5C6C75" }}>{resolvedCount}</span>
-            </button>
-            <button style={tabStyle(activeTab === "dismissed")} onClick={() => setActiveTab("dismissed")}>
-              Dismissed
-              <span style={{ fontSize: 11, color: "#5C6C75" }}>{dismissedCount}</span>
-            </button>
-          </div>
-          <div style={{ fontSize: 13, color: "#00ED64" }}>
+    <TableContainer>
+      {/* Tabs */}
+      <TabBar
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        rightContent={
+          <span className="text-[13px] text-mdb-leaf">
             Saved $3,460/mo this month
-          </div>
-        </div>
+          </span>
+        }
+        className="px-6"
+      />
 
-        {/* Filter bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 18,
-            padding: "14px 24px",
-            background: "rgba(0, 0, 0, 0.15)",
-            borderBottom: "0.5px solid #0E2230",
-          }}
-        >
-          <div style={{ position: "relative", width: 240 }}>
-            <input
-              type="text"
-              placeholder="Search findings..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                paddingRight: 50,
-                background: "rgba(255,255,255,0.04)",
-                border: "0.5px solid #1C2D38",
-                borderRadius: 8,
-                color: "#C5CDD3",
-                fontSize: 13,
-                outline: "none",
-              }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                right: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 11,
-                color: "#5C6C75",
-                background: "#112733",
-                padding: "3px 6px",
-                borderRadius: 4,
-              }}
+      {/* Filter bar */}
+      <FilterBar>
+        <SearchInput
+          value={filters.search}
+          onChange={(val) => setFilters({ ...filters, search: val })}
+          placeholder="Search findings..."
+        />
+
+        <FilterDropdown
+          label="Severity"
+          value={filters.severity}
+          options={[
+            { value: "all", label: "all" },
+            { value: "critical", label: "critical" },
+            { value: "high", label: "high" },
+            { value: "medium", label: "medium" },
+            { value: "low", label: "low" },
+          ]}
+          onChange={(val) => setFilters({ ...filters, severity: val })}
+        />
+
+        <FilterDropdown
+          label="Category"
+          value={filters.category}
+          options={[
+            { value: "all", label: "all" },
+            { value: "security", label: "security" },
+            { value: "spend", label: "cost" },
+            { value: "slow_query", label: "query" },
+            { value: "backup", label: "backup" },
+            { value: "index_rationalization", label: "index" },
+            { value: "data_quality", label: "data quality" },
+          ]}
+          onChange={(val) => setFilters({ ...filters, category: val })}
+        />
+
+        <FilterDropdown
+          label="Cluster"
+          value={filters.cluster}
+          options={[{ value: "all", label: "all" }, ...clusters.map((c) => ({ value: c, label: c }))]}
+          onChange={(val) => setFilters({ ...filters, cluster: val })}
+        />
+
+        <FilterSpacer />
+
+        <FilterDropdown
+          label="Sort"
+          value={filters.sort}
+          options={[
+            { value: "impact", label: "impact" },
+            { value: "newest", label: "newest" },
+            { value: "savings", label: "savings" },
+          ]}
+          onChange={(val) => setFilters({ ...filters, sort: val })}
+        />
+      </FilterBar>
+
+      {/* Table header */}
+      <div
+        className="grid gap-4 px-6 py-3 border-b border-[#0E2230]"
+        style={{ gridTemplateColumns: gridCols }}
+      >
+        <div />
+        <div className="text-[11px] text-[#5C6C75] uppercase tracking-wide">Severity</div>
+        <div className="text-[11px] text-[#5C6C75] uppercase tracking-wide">Finding</div>
+        <div className="text-[11px] text-[#5C6C75] uppercase tracking-wide">Category</div>
+        <div className="text-[11px] text-[#5C6C75] uppercase tracking-wide text-right">Impact</div>
+        <div />
+      </div>
+
+      {/* Table rows */}
+      <div>
+        {filteredItems.map((f) => {
+          const clusterName = extractClusterFromFinding(f);
+          const hasSavings = f.estimated_monthly_savings_usd && f.estimated_monthly_savings_usd > 0;
+
+          return (
+            <div
+              key={f.id}
+              onClick={() => onSelect(f.id)}
+              className="grid gap-4 px-6 py-4 items-center border-b border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+              style={{ gridTemplateColumns: gridCols }}
             >
-              ⌘K
-            </span>
-          </div>
-
-          <FilterDropdown
-            label="Severity"
-            value={filters.severity}
-            options={[
-              { value: "all", label: "all" },
-              { value: "critical", label: "critical" },
-              { value: "high", label: "high" },
-              { value: "medium", label: "medium" },
-              { value: "low", label: "low" },
-            ]}
-            onChange={(val) => setFilters({ ...filters, severity: val })}
-          />
-
-          <FilterDropdown
-            label="Category"
-            value={filters.category}
-            options={[
-              { value: "all", label: "all" },
-              { value: "security", label: "security" },
-              { value: "spend", label: "cost" },
-              { value: "slow_query", label: "query" },
-              { value: "backup", label: "backup" },
-              { value: "index_rationalization", label: "index" },
-              { value: "data_quality", label: "data quality" },
-            ]}
-            onChange={(val) => setFilters({ ...filters, category: val })}
-          />
-
-          <FilterDropdown
-            label="Cluster"
-            value={filters.cluster}
-            options={[{ value: "all", label: "all" }, ...clusters.map((c) => ({ value: c, label: c }))]}
-            onChange={(val) => setFilters({ ...filters, cluster: val })}
-          />
-
-          <div style={{ flex: 1 }} />
-
-          <FilterDropdown
-            label="Sort"
-            value={filters.sort}
-            options={[
-              { value: "impact", label: "impact" },
-              { value: "newest", label: "newest" },
-              { value: "savings", label: "savings" },
-            ]}
-            onChange={(val) => setFilters({ ...filters, sort: val })}
-          />
-        </div>
-
-        {/* Table header */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "16px 85px minmax(0, 1fr) 100px 130px 16px",
-            gap: 16,
-            padding: "12px 24px",
-            borderBottom: "0.5px solid #0E2230",
-          }}
-        >
-          <div />
-          <div style={{ fontSize: 11, color: "#5C6C75", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Severity
-          </div>
-          <div style={{ fontSize: 11, color: "#5C6C75", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Finding
-          </div>
-          <div style={{ fontSize: 11, color: "#5C6C75", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Category
-          </div>
-          <div style={{ fontSize: 11, color: "#5C6C75", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>
-            Impact
-          </div>
-          <div />
-        </div>
-
-        {/* Table rows */}
-        <div>
-          {filteredItems.map((f) => {
-            const clusterName = extractClusterFromFinding(f);
-            const hasSavings = f.estimated_monthly_savings_usd && f.estimated_monthly_savings_usd > 0;
-
-            return (
-              <div
-                key={f.id}
-                className="find-row"
-                onClick={() => onSelect(f.id)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "16px 85px minmax(0, 1fr) 100px 130px 16px",
-                  gap: 16,
-                  padding: "16px 24px",
-                  cursor: "pointer",
-                  borderBottom: "0.5px solid #0E2230",
-                  alignItems: "center",
-                }}
-              >
-                {/* Severity dot */}
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <span
-                    className={f.severity === "critical" ? "dot-crit" : ""}
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background:
-                        f.severity === "critical" || f.severity === "high"
-                          ? "#FF6960"
-                          : f.severity === "medium"
+              {/* Severity dot */}
+              <div className="flex justify-center">
+                <span
+                  className={`w-[7px] h-[7px] rounded-full ${f.severity === "critical" ? "animate-pulse" : ""}`}
+                  style={{
+                    background:
+                      f.severity === "critical" || f.severity === "high"
+                        ? "#FF6960"
+                        : f.severity === "medium"
                           ? "#FFC010"
                           : "#889397",
-                      boxShadow:
-                        f.severity === "critical"
-                          ? "0 0 10px rgba(255,105,96,0.5)"
-                          : "none",
-                    }}
-                  />
-                </div>
+                    boxShadow: f.severity === "critical" ? "0 0 10px rgba(255,105,96,0.5)" : "none",
+                  }}
+                />
+              </div>
 
-                {/* Severity pill */}
-                <div>
-                  <Pill variant={severityToPill(f.severity)}>{f.severity}</Pill>
-                </div>
+              {/* Severity pill */}
+              <Pill variant={severityToVariant(f.severity)}>{f.severity}</Pill>
 
-                {/* Title + meta */}
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      color: "#FFFFFF",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {f.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#5C6C75",
-                      fontFamily: "ui-monospace, monospace",
-                      marginTop: 4,
-                    }}
-                  >
-                    {clusterName} · detected {timeAgo(f.created_at)}
-                  </div>
-                </div>
-
-                {/* Category */}
-                <div style={{ fontSize: 12, color: "#5C6C75" }}>
-                  {categoryOf(f.agent).label}
-                </div>
-
-                {/* Impact - always show savings if available, otherwise show "-" */}
-                <div style={{ textAlign: "right" }}>
-                  {hasSavings ? (
-                    <span style={{ fontSize: 14, color: "#00ED64", fontWeight: 500 }}>
-                      ${f.estimated_monthly_savings_usd!.toLocaleString()}/mo
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: 12, color: "#5C6C75" }}>-</span>
-                  )}
-                </div>
-
-                {/* Chevron */}
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <ChevronRight />
+              {/* Title + meta */}
+              <div className="min-w-0">
+                <div className="text-[15px] text-white truncate">{f.title}</div>
+                <div className="text-xs text-[#5C6C75] font-mono mt-1">
+                  {clusterName} · detected {timeAgo(f.created_at)}
                 </div>
               </div>
-            );
-          })}
 
-          {filteredItems.length === 0 && (
-            <div style={{ padding: "48px 24px", textAlign: "center", color: "#5C6C75", fontSize: 14 }}>
-              No findings match your filters.
+              {/* Category */}
+              <div className="text-xs text-[#5C6C75]">
+                {categoryOf(f.agent).label}
+              </div>
+
+              {/* Impact */}
+              <div className="text-right">
+                {hasSavings ? (
+                  <span className="text-sm text-mdb-leaf font-medium">
+                    ${f.estimated_monthly_savings_usd!.toLocaleString()}/mo
+                  </span>
+                ) : (
+                  <span className="text-xs text-[#5C6C75]">-</span>
+                )}
+              </div>
+
+              {/* Chevron */}
+              <div className="flex justify-center">
+                <ChevronRight />
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })}
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "16px 24px",
-            borderTop: "0.5px solid #0E2230",
-            fontSize: 13,
-          }}
-        >
-          <span style={{ color: "#5C6C75" }}>
-            Showing <span style={{ color: "#C5CDD3" }}>{filteredItems.length}</span> of{" "}
-            <span style={{ color: "#C5CDD3" }}>{activeTab === "open" ? openItems.length : filteredItems.length}</span> {activeTab} ·{" "}
-            <span style={{ color: "#00ED64" }}>${totalSavings.toLocaleString()}/mo total addressable savings</span>
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: "#5C6C75" }}>Items per page</span>
-            <select
-              style={{
-                background: "transparent",
-                border: "0.5px solid #1C2D38",
-                borderRadius: 6,
-                color: "#C5CDD3",
-                fontSize: 13,
-                padding: "6px 10px",
-              }}
-            >
-              <option value="25" style={{ background: "#001E2B" }}>25</option>
-              <option value="50" style={{ background: "#001E2B" }}>50</option>
-              <option value="100" style={{ background: "#001E2B" }}>100</option>
-            </select>
+        {filteredItems.length === 0 && (
+          <div className="py-12 text-center text-[#5C6C75] text-sm">
+            No findings match your filters.
           </div>
-        </div>
+        )}
       </div>
-    </div>
+
+      {/* Footer */}
+      <TableFooter>
+        <span className="text-[#5C6C75]">
+          Showing <span className="text-[#C5CDD3]">{filteredItems.length}</span> of{" "}
+          <span className="text-[#C5CDD3]">{activeTab === "open" ? openItems.length : filteredItems.length}</span> {activeTab} ·{" "}
+          <span className="text-mdb-leaf">${totalSavings.toLocaleString()}/mo total addressable savings</span>
+        </span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[#5C6C75]">Items per page</span>
+          <select className="bg-transparent border-[0.5px] border-[#1C2D38] rounded-md text-[#C5CDD3] text-[13px] px-2.5 py-1.5">
+            <option value="25" className="bg-[#001E2B]">25</option>
+            <option value="50" className="bg-[#001E2B]">50</option>
+            <option value="100" className="bg-[#001E2B]">100</option>
+          </select>
+        </div>
+      </TableFooter>
+    </TableContainer>
   );
 }
 
@@ -1557,7 +1080,6 @@ export function Findings() {
   async function handleDecision(id: string, status: FindingStatus) {
     try {
       await api.findings.setStatus(id, status);
-      // Update local state without navigating away
       const updated = await api.findings.list();
       setItems(updated);
     } catch (e: unknown) {
@@ -1567,81 +1089,53 @@ export function Findings() {
 
   if (loading && items.length === 0) {
     return (
-      <div style={{ padding: 48, textAlign: "center", color: "#889397", fontSize: 15 }}>
-        Loading findings...
-      </div>
+      <PageContainer>
+        <div className="py-12 text-center text-[#889397] text-[15px]">
+          Loading findings...
+        </div>
+      </PageContainer>
     );
   }
 
   if (err && items.length === 0) {
     return (
-      <div style={{ padding: 48, textAlign: "center", color: "#FF6960", fontSize: 15 }}>
-        {err}
-      </div>
+      <PageContainer>
+        <div className="py-12 text-center text-[#FF6960] text-[15px]">
+          {err}
+        </div>
+      </PageContainer>
     );
   }
 
-  // const clusterCount = new Set(items.map(extractClusterFromFinding)).size;
-
   return (
-    <>
-      <style>{animationStyles}</style>
+    <PageContainer>
+      {/* Page header (only show in list view) */}
+      {!selectedFinding && (
+        <PageHeader title="Findings" className="mb-7" />
+      )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        {/* Page header (only show in list view) */}
-        {!selectedFinding && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 28,
-            }}
-          >
-            <div>
-              <h1 style={{ fontSize: 24, color: "#FFFFFF", fontWeight: 500, margin: 0 }}>
-                Findings
-              </h1>
-            </div>
-{/* Status removed - was confusing ("Live scanning" without context) */}
-          </div>
-        )}
-
-        {selectedFinding ? (
-          <DetailView
-            finding={selectedFinding}
-            items={items}
-            onBack={() => setSearchParams({})}
-            onDecision={handleDecision}
-            onNavigate={(id) => setSearchParams({ selected: id })}
-          />
-        ) : (
-          <ListView items={items} onSelect={(id) => setSearchParams({ selected: id })} />
-        )}
-      </div>
+      {selectedFinding ? (
+        <DetailView
+          finding={selectedFinding}
+          items={items}
+          onBack={() => setSearchParams({})}
+          onDecision={handleDecision}
+          onNavigate={(id) => setSearchParams({ selected: id })}
+        />
+      ) : (
+        <ListView items={items} onSelect={(id) => setSearchParams({ selected: id })} />
+      )}
 
       {/* Hidden reset toast */}
       {showResetToast && (
         <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            fontSize: 11,
-            background: "rgba(0,237,100,0.08)",
-            border: "0.5px solid rgba(0,237,100,0.3)",
-            color: "#00ED64",
-            padding: "8px 16px",
-            borderRadius: 9999,
-            opacity: toastFading ? 0 : 1,
-            transition: "opacity 0.3s ease",
-            zIndex: 9999,
-          }}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 text-[11px] bg-mdb-leaf/[0.08] border-[0.5px] border-mdb-leaf/30 text-mdb-leaf px-4 py-2 rounded-full z-[9999] transition-opacity duration-300 ${
+            toastFading ? "opacity-0" : "opacity-100"
+          }`}
         >
           Demo reset - all findings restored
         </div>
       )}
-    </>
+    </PageContainer>
   );
 }

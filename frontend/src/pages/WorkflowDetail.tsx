@@ -7,6 +7,7 @@ import {
   PipelineTimeline,
   generatePipelineSteps,
 } from "@/components/PipelineTimeline";
+// Shared components available: PageContainer, Card from "@/components/PageContainer"
 
 // =============================================================================
 // HELPERS

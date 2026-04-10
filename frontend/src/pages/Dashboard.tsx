@@ -2,6 +2,10 @@ import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/api";
 import type { DashboardSummary, FindingPreview } from "@/types";
+import { Pill, severityToVariant, type PillVariant } from "@/components/Pill";
+import { TabBar, type Tab } from "@/components/TabBar";
+import { PageContainer, TableContainer, TableFooter } from "@/components/PageContainer";
+import { FilterBar, FilterDropdown, SearchInput, FilterSpacer } from "@/components/FilterBar";
 
 // =============================================================================
 // CLUSTER DATA (mock until API endpoint exists)
@@ -12,7 +16,6 @@ interface ClusterInfo {
   status: "healthy" | "warning" | "critical";
 }
 
-// TODO: replace with API call
 const MOCK_CLUSTERS: ClusterInfo[] = [
   { name: "payments-prod", status: "critical" },
   { name: "analytics-warehouse", status: "warning" },
@@ -28,7 +31,6 @@ const MOCK_CLUSTERS: ClusterInfo[] = [
   { name: "config-db", status: "healthy" },
 ];
 
-// TODO: replace with API call
 const MOCK_WORKFLOWS = [
   {
     id: "cost-query",
@@ -68,8 +70,6 @@ const MOCK_WORKFLOWS = [
   },
 ];
 
-type PillVariant = "crit" | "med" | "low" | "green" | "blue" | "gray" | "scan";
-
 interface HistoryItem {
   time: string;
   type: string;
@@ -85,21 +85,20 @@ interface HistoryGroup {
   items: HistoryItem[];
 }
 
-// TODO: replace with API call
 const MOCK_HISTORY: HistoryGroup[] = [
   {
     day: "Today",
     items: [
-      { time: "9:14 AM", type: "scan", pill: "green", title: "Cost & query health workflow ran across 12 clusters", meta: "2 new findings · spend, query", metaHighlight: "amber", context: "2.4s" },
-      { time: "9:10 AM", type: "finding", pill: "med", title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication", context: "$1,520" },
-      { time: "2:47 AM", type: "critical", pill: "crit", title: "Unusual IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", context: "unresolved" },
+      { time: "9:14 AM", type: "scan", pill: "success", title: "Cost & query health workflow ran across 12 clusters", meta: "2 new findings · spend, query", metaHighlight: "amber", context: "2.4s" },
+      { time: "9:10 AM", type: "finding", pill: "medium", title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication", context: "$1,520" },
+      { time: "2:47 AM", type: "critical", pill: "critical", title: "Unusual IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", context: "unresolved" },
     ],
   },
   {
     day: "Yesterday",
     items: [
-      { time: "4:12 PM", type: "resolved", pill: "green", title: "3 unused indexes dropped on analytics-warehouse", meta: "approved by Sarah · cleanup workflow", context: "$340/mo" },
-      { time: "9:00 AM", type: "scan", pill: "green", title: "Backup & index audit completed", meta: "2 findings · all clusters scanned", metaHighlight: "amber", context: "4.1s" },
+      { time: "4:12 PM", type: "resolved", pill: "success", title: "3 unused indexes dropped on analytics-warehouse", meta: "approved by Sarah · cleanup workflow", context: "$340/mo" },
+      { time: "9:00 AM", type: "scan", pill: "success", title: "Backup & index audit completed", meta: "2 findings · all clusters scanned", metaHighlight: "amber", context: "4.1s" },
     ],
   },
   {
@@ -110,14 +109,13 @@ const MOCK_HISTORY: HistoryGroup[] = [
   },
 ];
 
-// TODO: replace with API call
 const MOCK_ACTIVITY = [
   { when: "just now", isLive: true, pill: "scan" as const, title: "Cost & query health is scanning · 8 of 12 clusters", meta: "started 12s ago · 2 findings so far · ~3s remaining", impact: "live" },
-  { when: "2h ago", isLive: false, pill: "med" as const, title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication anomaly", impact: "$1,520/mo" },
-  { when: "5h ago", isLive: false, pill: "med" as const, title: "Backup audit found over-snapshotting on 8 clusters", meta: "backup · low-churn collections", impact: "$1,240/mo" },
-  { when: "14h ago", isLive: false, pill: "crit" as const, title: "A new IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", impact: "review", whenColor: "#FF6960" },
-  { when: "yesterday", isLive: false, pill: "green" as const, title: "Sarah approved index cleanup on analytics-warehouse", meta: "3 indexes dropped · saving going forward", impact: "$340/mo" },
-  { when: "yesterday", isLive: false, pill: "blue" as const, title: "Backup & index audit completed", meta: "all clusters · 2 findings", impact: "4.1s" },
+  { when: "2h ago", isLive: false, pill: "medium" as const, title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication anomaly", impact: "$1,520/mo" },
+  { when: "5h ago", isLive: false, pill: "medium" as const, title: "Backup audit found over-snapshotting on 8 clusters", meta: "backup · low-churn collections", impact: "$1,240/mo" },
+  { when: "14h ago", isLive: false, pill: "critical" as const, title: "A new IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", impact: "review", whenColor: "#FF6960" },
+  { when: "yesterday", isLive: false, pill: "success" as const, title: "Sarah approved index cleanup on analytics-warehouse", meta: "3 indexes dropped · saving going forward", impact: "$340/mo" },
+  { when: "yesterday", isLive: false, pill: "info" as const, title: "Backup & index audit completed", meta: "all clusters · 2 findings", impact: "4.1s" },
 ];
 
 // =============================================================================
@@ -152,97 +150,8 @@ function extractClusterFromFinding(finding: FindingPreview): string {
 }
 
 // =============================================================================
-// ANIMATIONS
+// ICONS
 // =============================================================================
-
-const animationStyles = `
-@keyframes mdba-pulse-green {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50%      { opacity: 0.85; transform: scale(1.1); }
-}
-@keyframes mdba-pulse-red {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.3); }
-}
-@keyframes mdba-progress {
-  0%   { width: 22%; }
-  50%  { width: 58%; }
-  100% { width: 87%; }
-}
-
-.dot-ok      { animation: mdba-pulse-green 3s ease-in-out infinite; transform-origin: center; }
-.dot-crit    { animation: mdba-pulse-red 1.8s ease-in-out infinite; transform-origin: center; }
-.scan-dot    { animation: mdba-pulse-green 1.6s ease-in-out infinite; }
-.live-dot    { animation: mdba-pulse-green 2.4s ease-in-out infinite; }
-.scan-progress { animation: mdba-progress 4s ease-in-out infinite; }
-
-.row { transition: background 0.15s ease; }
-.row:hover { background: rgba(255, 255, 255, 0.025); }
-`;
-
-// =============================================================================
-// PILL COMPONENT
-// =============================================================================
-
-const pillStyles: Record<PillVariant, { color: string; bg: string; border: string }> = {
-  crit: { color: "#FF6960", bg: "rgba(255,105,96,0.08)", border: "rgba(255,105,96,0.3)" },
-  med: { color: "#FFC010", bg: "rgba(255,192,16,0.08)", border: "rgba(255,192,16,0.3)" },
-  low: { color: "#889397", bg: "rgba(136,147,151,0.06)", border: "rgba(136,147,151,0.25)" },
-  green: { color: "#00ED64", bg: "rgba(0,237,100,0.08)", border: "rgba(0,237,100,0.3)" },
-  blue: { color: "#3D9CFF", bg: "rgba(61,156,255,0.08)", border: "rgba(61,156,255,0.3)" },
-  gray: { color: "#889397", bg: "rgba(255,255,255,0.04)", border: "#1C2D38" },
-  scan: { color: "#00ED64", bg: "rgba(0,237,100,0.08)", border: "rgba(0,237,100,0.3)" },
-};
-
-function Pill({ variant, children }: { variant: PillVariant; children: React.ReactNode }) {
-  const s = pillStyles[variant];
-  const isScan = variant === "scan";
-  return (
-    <span
-      style={{
-        fontSize: 12,
-        padding: "3px 8px",
-        borderRadius: 3,
-        letterSpacing: "0.05em",
-        textAlign: "center",
-        fontWeight: 500,
-        textTransform: "uppercase",
-        border: `0.5px solid ${s.border}`,
-        color: s.color,
-        background: s.bg,
-        display: isScan ? "flex" : "inline-block",
-        alignItems: isScan ? "center" : undefined,
-        justifyContent: isScan ? "center" : undefined,
-        gap: isScan ? 5 : undefined,
-      }}
-    >
-      {isScan && (
-        <span
-          className="scan-dot"
-          style={{ width: 4, height: 4, borderRadius: "50%", background: "#00ED64" }}
-        />
-      )}
-      {children}
-    </span>
-  );
-}
-
-// =============================================================================
-// ICON COMPONENTS
-// =============================================================================
-
-function SearchIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#5C6C75" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
-function ChevronIcon() {
-  return <span style={{ color: "#5C6C75", fontSize: 14 }}>›</span>;
-}
 
 function SunIcon() {
   return (
@@ -280,9 +189,13 @@ function ServerIcon() {
   );
 }
 
+function ChevronIcon() {
+  return <span className="text-[#5C6C75] text-sm">›</span>;
+}
+
 function CostIconChip() {
   return (
-    <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(0,237,100,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div className="w-6 h-6 rounded-md bg-mdb-leaf/10 flex items-center justify-center">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00ED64" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="1" x2="12" y2="23" />
         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -293,7 +206,7 @@ function CostIconChip() {
 
 function SecurityIconChip() {
   return (
-    <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(255,105,96,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div className="w-6 h-6 rounded-md bg-[#FF6960]/[0.08] flex items-center justify-center">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF6960" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
@@ -303,7 +216,7 @@ function SecurityIconChip() {
 
 function BackupIconChip() {
   return (
-    <div style={{ width: 24, height: 24, borderRadius: 6, background: "rgba(61,156,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div className="w-6 h-6 rounded-md bg-[#3D9CFF]/[0.08] flex items-center justify-center">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3D9CFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="21 8 21 21 3 21 3 8" />
         <rect x="1" y="3" width="22" height="5" />
@@ -337,41 +250,25 @@ function StatCardFindings({ findings }: { findings: FindingPreview[] }) {
 
   const total = findings.length;
 
-  const parts: React.ReactNode[] = [];
-  if (breakdown.critical > 0) {
-    parts.push(<span key="crit" style={{ color: "#FF6960" }}>{breakdown.critical} critical</span>);
-  }
-  if (breakdown.high > 0) {
-    parts.push(<span key="high" style={{ color: "#FF6960" }}>{breakdown.high} high</span>);
-  }
-  if (breakdown.medium > 0) {
-    parts.push(<span key="med" style={{ color: "#FFC010" }}>{breakdown.medium} medium</span>);
-  }
-  if (breakdown.low > 0) {
-    parts.push(<span key="low" style={{ color: "#889397" }}>{breakdown.low} low</span>);
-  }
-
   return (
-    <Link to="/findings" style={{ textDecoration: "none", display: "block", height: "100%" }}>
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, padding: "18px 20px", cursor: "pointer", transition: "border-color 0.15s", height: "100%", boxSizing: "border-box" }} className="hover:border-[#00ED64]/40">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, textTransform: "uppercase", color: "#889397", letterSpacing: "0.05em" }}>OPEN FINDINGS</span>
+    <Link to="/findings" className="block h-full">
+      <div className="bg-white/[0.02] border-[0.5px] border-[#112733] rounded-xl p-5 h-full hover:border-mdb-leaf/40 transition-colors">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase text-[#889397] tracking-wide">OPEN FINDINGS</span>
           <SunIcon />
         </div>
-        <div style={{ marginTop: 8 }}>
-          <span style={{ fontSize: 36, fontWeight: 500, color: "#FFFFFF", lineHeight: 1 }}>{total}</span>
+        <div className="mt-2">
+          <span className="text-4xl font-medium text-white">{total}</span>
         </div>
-        <div style={{ marginTop: 10, fontSize: 12, color: "#5C6C75" }}>
-          {parts.length > 0 ? (
-            parts.map((part, i) => (
-              <span key={i}>
-                {i > 0 && " · "}
-                {part}
-              </span>
-            ))
-          ) : (
-            <span>No open findings</span>
-          )}
+        <div className="mt-2.5 text-xs text-[#5C6C75]">
+          {breakdown.critical > 0 && <span className="text-[#FF6960]">{breakdown.critical} critical</span>}
+          {breakdown.critical > 0 && breakdown.high > 0 && " · "}
+          {breakdown.high > 0 && <span className="text-[#FF6960]">{breakdown.high} high</span>}
+          {(breakdown.critical > 0 || breakdown.high > 0) && breakdown.medium > 0 && " · "}
+          {breakdown.medium > 0 && <span className="text-[#FFC010]">{breakdown.medium} medium</span>}
+          {(breakdown.critical > 0 || breakdown.high > 0 || breakdown.medium > 0) && breakdown.low > 0 && " · "}
+          {breakdown.low > 0 && <span className="text-[#889397]">{breakdown.low} low</span>}
+          {total === 0 && <span>No open findings</span>}
         </div>
       </div>
     </Link>
@@ -389,19 +286,19 @@ function StatCardSavings({ totalSavings, findings }: { totalSavings: number; fin
   const categoryText = categoryLabels.join(", ") + (savingsInfo.categories.length > 3 ? "..." : "");
 
   return (
-    <Link to="/findings" style={{ textDecoration: "none", display: "block", height: "100%" }}>
-      <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, padding: "18px 20px", cursor: "pointer", transition: "border-color 0.15s", height: "100%", boxSizing: "border-box" }} className="hover:border-[#00ED64]/40">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, textTransform: "uppercase", color: "#889397", letterSpacing: "0.05em" }}>AVAILABLE SAVINGS</span>
+    <Link to="/findings" className="block h-full">
+      <div className="bg-white/[0.02] border-[0.5px] border-[#112733] rounded-xl p-5 h-full hover:border-mdb-leaf/40 transition-colors">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase text-[#889397] tracking-wide">AVAILABLE SAVINGS</span>
           <DollarIcon />
         </div>
-        <div style={{ marginTop: 8, display: "flex", alignItems: "baseline" }}>
-          <span style={{ fontSize: 36, fontWeight: 500, color: "#00ED64", lineHeight: 1, letterSpacing: "-0.01em" }}>
+        <div className="mt-2 flex items-baseline">
+          <span className="text-4xl font-medium text-mdb-leaf tracking-tight">
             ${totalSavings.toLocaleString()}
           </span>
-          <span style={{ fontSize: 12, color: "#5C6C75", marginLeft: 2 }}>/mo</span>
+          <span className="text-xs text-[#5C6C75] ml-0.5">/mo</span>
         </div>
-        <div style={{ marginTop: 10, fontSize: 12, color: "#5C6C75" }}>
+        <div className="mt-2.5 text-xs text-[#5C6C75]">
           {savingsInfo.count > 0 ? (
             <>across {savingsInfo.count} finding{savingsInfo.count !== 1 ? "s" : ""} · {categoryText}</>
           ) : (
@@ -423,68 +320,47 @@ function StatCardClusters({ clusters }: { clusters: ClusterInfo[] }) {
   const hasIssues = criticalClusters.length > 0 || warningClusters.length > 0;
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, padding: "18px 20px", height: "100%", boxSizing: "border-box", position: "relative" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 12, textTransform: "uppercase", color: "#889397", letterSpacing: "0.05em" }}>CLUSTERS</span>
+    <div className="bg-white/[0.02] border-[0.5px] border-[#112733] rounded-xl p-5 h-full">
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase text-[#889397] tracking-wide">CLUSTERS</span>
         <ServerIcon />
       </div>
-      <div style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 36, fontWeight: 500, color: "#FFFFFF", lineHeight: 1 }}>{health.total}</span>
-        <span style={{ fontSize: 15, color: "#5C6C75", marginLeft: 6 }}>monitored</span>
+      <div className="mt-2">
+        <span className="text-4xl font-medium text-white">{health.total}</span>
+        <span className="text-[15px] text-[#5C6C75] ml-1.5">monitored</span>
       </div>
-      <div style={{ marginTop: 12, fontSize: 12, color: "#5C6C75", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="mt-3 text-xs text-[#5C6C75] flex items-center justify-between">
         {allHealthy ? (
-          <span style={{ color: "#00ED64" }}>All healthy</span>
+          <span className="text-mdb-leaf">All healthy</span>
         ) : (
           <span>
-            <span style={{ color: "#00ED64" }}>{health.healthy} healthy</span>
-            {health.warning > 0 && <span style={{ color: "#FFC010" }}> · {health.warning} warning</span>}
-            {health.critical > 0 && <span style={{ color: "#FF6960" }}> · {health.critical} critical</span>}
+            <span className="text-mdb-leaf">{health.healthy} healthy</span>
+            {health.warning > 0 && <span className="text-[#FFC010]"> · {health.warning} warning</span>}
+            {health.critical > 0 && <span className="text-[#FF6960]"> · {health.critical} critical</span>}
           </span>
         )}
         {hasIssues && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#00ED64",
-              fontSize: 12,
-              cursor: "pointer",
-              padding: "2px 6px",
-              borderRadius: 4,
-            }}
+            className="text-mdb-leaf text-xs px-1.5 py-0.5 rounded hover:bg-mdb-leaf/10 transition-colors"
           >
             {isExpanded ? "Hide" : "Details"}
           </button>
         )}
       </div>
 
-      {/* Expandable details panel */}
       {isExpanded && hasIssues && (
-        <div style={{
-          marginTop: 14,
-          paddingTop: 14,
-          borderTop: "0.5px solid #112733",
-        }}>
+        <div className="mt-3.5 pt-3.5 border-t border-[#112733]">
           {criticalClusters.length > 0 && (
-            <div style={{ marginBottom: warningClusters.length > 0 ? 10 : 0 }}>
-              <div style={{ fontSize: 11, color: "#FF6960", marginBottom: 6, fontWeight: 500 }}>
+            <div className={warningClusters.length > 0 ? "mb-2.5" : ""}>
+              <div className="text-[11px] text-[#FF6960] mb-1.5 font-medium">
                 Critical ({criticalClusters.length})
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              <div className="flex flex-wrap gap-1">
                 {criticalClusters.map(c => (
                   <span
                     key={c.name}
-                    style={{
-                      fontSize: 11,
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: "rgba(255,105,96,0.1)",
-                      color: "#FF6960",
-                      border: "0.5px solid rgba(255,105,96,0.3)",
-                      fontFamily: "ui-monospace, monospace",
-                    }}
+                    className="text-[11px] px-2 py-0.5 rounded bg-[#FF6960]/10 text-[#FF6960] border-[0.5px] border-[#FF6960]/30 font-mono"
                   >
                     {c.name}
                   </span>
@@ -494,22 +370,14 @@ function StatCardClusters({ clusters }: { clusters: ClusterInfo[] }) {
           )}
           {warningClusters.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: "#FFC010", marginBottom: 6, fontWeight: 500 }}>
+              <div className="text-[11px] text-[#FFC010] mb-1.5 font-medium">
                 Warning ({warningClusters.length})
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              <div className="flex flex-wrap gap-1">
                 {warningClusters.map(c => (
                   <span
                     key={c.name}
-                    style={{
-                      fontSize: 11,
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: "rgba(255,192,16,0.1)",
-                      color: "#FFC010",
-                      border: "0.5px solid rgba(255,192,16,0.3)",
-                      fontFamily: "ui-monospace, monospace",
-                    }}
+                    className="text-[11px] px-2 py-0.5 rounded bg-[#FFC010]/10 text-[#FFC010] border-[0.5px] border-[#FFC010]/30 font-mono"
                   >
                     {c.name}
                   </span>
@@ -528,7 +396,6 @@ function StatCardClusters({ clusters }: { clusters: ClusterInfo[] }) {
 // =============================================================================
 
 function NetworkGraphSVG() {
-  // Static decorative network pattern - clean and modern
   const nodes = [
     { x: 120, y: 30, r: 5, primary: true },
     { x: 180, y: 45, r: 4, primary: false },
@@ -552,8 +419,7 @@ function NetworkGraphSVG() {
   ];
 
   return (
-    <svg viewBox="0 0 280 170" style={{ position: "absolute", top: 10, right: 10, width: 320, height: 190, opacity: 0.85 }}>
-      {/* Connection lines */}
+    <svg viewBox="0 0 280 170" className="absolute top-2.5 right-2.5 w-80 h-48 opacity-85">
       {connections.map(([from, to], i) => (
         <line
           key={`line-${i}`}
@@ -565,7 +431,6 @@ function NetworkGraphSVG() {
           strokeWidth={0.6}
         />
       ))}
-      {/* Subtle glow for primary nodes */}
       {nodes.filter(n => n.primary).map((node, i) => (
         <circle
           key={`glow-${i}`}
@@ -575,11 +440,10 @@ function NetworkGraphSVG() {
           fill="rgba(0,237,100,0.08)"
         />
       ))}
-      {/* Nodes */}
       {nodes.map((node, i) => (
         <circle
           key={`node-${i}`}
-          className="dot-ok"
+          className="animate-pulse"
           cx={node.x}
           cy={node.y}
           r={node.r}
@@ -639,74 +503,31 @@ function TabbedWorkspace({ data }: { data: DashboardSummary }) {
     setFilters({ ...defaultFilters, sort: tab === "workflows" ? "last run" : "impact" });
   };
 
-  const tabCounts: Record<TabKey, number | null> = {
-    findings: data.open_findings,
-    workflows: data.workflows_active,
-    history: null,
-    activity: null,
-  };
-
   const hasCriticalFindings = data.top_findings.some((f) => f.severity === "critical" || f.severity === "high");
 
+  const tabs: Tab<TabKey>[] = [
+    { key: "findings", label: "Findings", count: data.open_findings, countVariant: hasCriticalFindings ? "warning" : "success" },
+    { key: "workflows", label: "Workflows", count: data.workflows_active },
+    { key: "history", label: "History" },
+    { key: "activity", label: "Activity", showDot: true },
+  ];
+
   return (
-    <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, marginTop: 24 }}>
-      <div style={{ display: "flex", padding: "0 22px", borderBottom: "0.5px solid #0E2230", borderRadius: "10px 10px 0 0" }}>
-        {(["findings", "workflows", "history", "activity"] as TabKey[]).map((tab) => {
-          const isActive = activeTab === tab;
-          const count = tabCounts[tab];
-          const isActivityTab = tab === "activity";
-          const showRedCount = tab === "findings" && hasCriticalFindings;
+    <TableContainer className="mt-6">
+      <TabBar
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        className="px-6"
+      />
 
-          return (
-            <button
-              key={tab}
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => handleTabChange(tab)}
-              style={{
-                padding: "16px 14px",
-                fontSize: 15,
-                color: isActive ? "#FFFFFF" : "#5C6C75",
-                fontWeight: isActive ? 500 : 400,
-                background: "transparent",
-                border: "none",
-                borderBottom: isActive ? "1.5px solid #00ED64" : "1.5px solid transparent",
-                marginBottom: isActive ? "-0.5px" : 0,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {count !== null && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    padding: "2px 7px",
-                    borderRadius: 9999,
-                    background: isActive ? (showRedCount ? "rgba(255,105,96,0.1)" : "rgba(0,237,100,0.1)") : "transparent",
-                    color: isActive ? (showRedCount ? "#FF6960" : "#00ED64") : "#5C6C75",
-                  }}
-                >
-                  {count}
-                </span>
-              )}
-              {isActivityTab && (
-                <span className="scan-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "#00ED64" }} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <FilterRow activeTab={activeTab} filters={filters} onFilterChange={updateFilter} />
+      <FilterRowComponent activeTab={activeTab} filters={filters} onFilterChange={updateFilter} />
 
       {activeTab === "findings" && <FindingsTab findings={data.top_findings} filters={filters} />}
       {activeTab === "workflows" && <WorkflowsTab filters={filters} />}
       {activeTab === "history" && <HistoryTab filters={filters} />}
       {activeTab === "activity" && <ActivityTab filters={filters} />}
-    </div>
+    </TableContainer>
   );
 }
 
@@ -720,78 +541,44 @@ interface FilterRowProps {
   onFilterChange: (key: keyof FilterState, value: string) => void;
 }
 
-function FilterRow({ activeTab, filters, onFilterChange }: FilterRowProps) {
-  const filterConfigs: Record<TabKey, { key: keyof FilterState; label: string; options: string[] }[]> = {
+function FilterRowComponent({ activeTab, filters, onFilterChange }: FilterRowProps) {
+  const filterConfigs: Record<TabKey, { key: keyof FilterState; label: string; options: { value: string; label: string }[] }[]> = {
     findings: [
-      { key: "severity", label: "Severity", options: ["all", "critical", "high", "medium", "low"] },
-      { key: "category", label: "Category", options: ["all", "spend", "slow_query", "backup", "security", "index_rationalization", "data_quality", "scaling"] },
-      { key: "cluster", label: "Cluster", options: ["all", "payments-prod", "analytics-warehouse", "prod-east-1"] },
+      { key: "severity", label: "Severity", options: [{ value: "all", label: "all" }, { value: "critical", label: "critical" }, { value: "high", label: "high" }, { value: "medium", label: "medium" }, { value: "low", label: "low" }] },
+      { key: "category", label: "Category", options: [{ value: "all", label: "all" }, { value: "spend", label: "spend" }, { value: "slow_query", label: "slow_query" }, { value: "backup", label: "backup" }, { value: "security", label: "security" }] },
+      { key: "cluster", label: "Cluster", options: [{ value: "all", label: "all" }, { value: "payments-prod", label: "payments-prod" }, { value: "analytics-warehouse", label: "analytics-warehouse" }, { value: "prod-east-1", label: "prod-east-1" }] },
     ],
     workflows: [
-      { key: "status", label: "Status", options: ["all", "scanning", "active", "paused"] },
-      { key: "schedule", label: "Schedule", options: ["all", "hourly", "every 6h", "daily", "weekly"] },
-      { key: "scope", label: "Scope", options: ["all", "all clusters", "payments-prod", "12 clusters"] },
+      { key: "status", label: "Status", options: [{ value: "all", label: "all" }, { value: "scanning", label: "scanning" }, { value: "active", label: "active" }, { value: "paused", label: "paused" }] },
+      { key: "schedule", label: "Schedule", options: [{ value: "all", label: "all" }, { value: "hourly", label: "hourly" }, { value: "every 6h", label: "every 6h" }, { value: "daily", label: "daily" }] },
+      { key: "scope", label: "Scope", options: [{ value: "all", label: "all" }, { value: "all clusters", label: "all clusters" }, { value: "payments-prod", label: "payments-prod" }] },
     ],
     history: [
-      { key: "date", label: "Date", options: ["last 7d", "last 24h", "last 30d", "all time"] },
-      { key: "type", label: "Type", options: ["all", "scan", "finding", "critical", "resolved", "config"] },
-      { key: "cluster", label: "Cluster", options: ["all", "payments-prod", "analytics-warehouse", "prod-east-1"] },
+      { key: "date", label: "Date", options: [{ value: "last 7d", label: "last 7d" }, { value: "last 24h", label: "last 24h" }, { value: "last 30d", label: "last 30d" }] },
+      { key: "type", label: "Type", options: [{ value: "all", label: "all" }, { value: "scan", label: "scan" }, { value: "finding", label: "finding" }, { value: "critical", label: "critical" }] },
+      { key: "cluster", label: "Cluster", options: [{ value: "all", label: "all" }, { value: "payments-prod", label: "payments-prod" }, { value: "analytics-warehouse", label: "analytics-warehouse" }] },
     ],
     activity: [
-      { key: "type", label: "Type", options: ["all", "scan", "finding", "critical", "resolved"] },
-      { key: "cluster", label: "Cluster", options: ["all", "payments-prod", "analytics-warehouse", "prod-east-1"] },
+      { key: "type", label: "Type", options: [{ value: "all", label: "all" }, { value: "scan", label: "scan" }, { value: "finding", label: "finding" }, { value: "critical", label: "critical" }] },
+      { key: "cluster", label: "Cluster", options: [{ value: "all", label: "all" }, { value: "payments-prod", label: "payments-prod" }, { value: "analytics-warehouse", label: "analytics-warehouse" }] },
     ],
   };
 
-  const sortOptions: Record<TabKey, string[]> = {
-    findings: ["impact", "severity", "recent"],
-    workflows: ["last run", "next run", "name"],
-    history: ["recent", "type"],
-    activity: ["recent", "impact"],
+  const sortOptions: Record<TabKey, { value: string; label: string }[]> = {
+    findings: [{ value: "impact", label: "impact" }, { value: "severity", label: "severity" }, { value: "recent", label: "recent" }],
+    workflows: [{ value: "last run", label: "last run" }, { value: "next run", label: "next run" }, { value: "name", label: "name" }],
+    history: [{ value: "recent", label: "recent" }, { value: "type", label: "type" }],
+    activity: [{ value: "recent", label: "recent" }, { value: "impact", label: "impact" }],
   };
 
   return (
-    <div style={{ padding: "14px 22px", borderBottom: "0.5px solid #0E2230", background: "rgba(0,0,0,0.15)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", position: "relative", zIndex: 10 }}>
-      <div
-        style={{
-          flex: "0 0 220px",
-          background: "rgba(255,255,255,0.025)",
-          border: "0.5px solid #0E2230",
-          borderRadius: 5,
-          padding: "6px 11px",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <SearchIcon />
-        <input
-          type="text"
-          placeholder={`Search ${activeTab}`}
-          value={filters.search}
-          onChange={(e) => onFilterChange("search", e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontSize: 12,
-            color: "#FFFFFF",
-          }}
-        />
-        <span
-          style={{
-            fontSize: 12,
-            color: "#5C6C75",
-            fontFamily: "ui-monospace, monospace",
-            padding: "1px 5px",
-            border: "0.5px solid #1C2D38",
-            borderRadius: 2,
-          }}
-        >
-          K
-        </span>
-      </div>
+    <FilterBar>
+      <SearchInput
+        value={filters.search}
+        onChange={(val) => onFilterChange("search", val)}
+        placeholder={`Search ${activeTab}`}
+        shortcut="K"
+      />
 
       {filterConfigs[activeTab].map((config) => (
         <FilterDropdown
@@ -803,27 +590,15 @@ function FilterRow({ activeTab, filters, onFilterChange }: FilterRowProps) {
         />
       ))}
 
-      <div style={{ flex: 1 }} />
+      <FilterSpacer />
 
       {activeTab === "activity" ? (
-        <span
-          style={{
-            fontSize: 12,
-            color: "#00ED64",
-            padding: "6px 11px",
-            border: "0.5px solid rgba(0,237,100,0.25)",
-            background: "rgba(0,237,100,0.04)",
-            borderRadius: 5,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span className="live-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "#00ED64" }} />
+        <span className="text-xs text-mdb-leaf px-3 py-1.5 border-[0.5px] border-mdb-leaf/25 bg-mdb-leaf/[0.04] rounded-md flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-mdb-leaf animate-pulse" />
           live · auto-refreshing
         </span>
       ) : activeTab === "history" ? (
-        <span style={{ fontSize: 12, color: "#C5CDD3", padding: "7px 11px", border: "0.5px solid #1C2D38", borderRadius: 5, cursor: "pointer" }}>
+        <span className="text-xs text-[#C5CDD3] px-3 py-1.5 border-[0.5px] border-[#1C2D38] rounded-md cursor-pointer hover:bg-white/[0.02]">
           Export
         </span>
       ) : (
@@ -834,78 +609,7 @@ function FilterRow({ activeTab, filters, onFilterChange }: FilterRowProps) {
           onChange={(val) => onFilterChange("sort", val)}
         />
       )}
-    </div>
-  );
-}
-
-function FilterDropdown({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (val: string) => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          fontSize: 12,
-          color: "#C5CDD3",
-          padding: "7px 11px",
-          border: "0.5px solid #1C2D38",
-          borderRadius: 5,
-          display: "flex",
-          gap: 6,
-          cursor: "pointer",
-          background: "transparent",
-        }}
-      >
-        {label} <span style={{ color: "#C5CDD3" }}>{value}</span> <span style={{ color: "#5C6C75" }}>v</span>
-      </button>
-      {isOpen && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 100 }} onClick={() => setIsOpen(false)} />
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              marginTop: 4,
-              background: "#0A1A1F",
-              border: "0.5px solid #1C2D38",
-              borderRadius: 6,
-              padding: 4,
-              zIndex: 101,
-              minWidth: 140,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            }}
-          >
-            {options.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => {
-                  onChange(opt);
-                  setIsOpen(false);
-                }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "8px 12px",
-                  fontSize: 12,
-                  color: opt === value ? "#00ED64" : "#C5CDD3",
-                  background: opt === value ? "rgba(0,237,100,0.08)" : "transparent",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                }}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    </FilterBar>
   );
 }
 
@@ -915,13 +619,6 @@ function FilterDropdown({ label, value, options, onChange }: { label: string; va
 
 function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filters: FilterState }) {
   const navigate = useNavigate();
-
-  const severityToPill: Record<string, PillVariant> = {
-    critical: "crit",
-    high: "crit",
-    medium: "med",
-    low: "low",
-  };
 
   const timeAgo = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -972,30 +669,20 @@ function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filter
   };
 
   const thisWeekSavings = findings.reduce((sum, f) => sum + (f.estimated_monthly_savings_usd ?? 0), 0);
+  const gridCols = "14px 96px minmax(0,1fr) 90px 14px";
 
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "14px 96px minmax(0, 1fr) 90px 14px",
-          gap: 14,
-          padding: "10px 22px",
-          fontSize: 12,
-          color: "#5C6C75",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
+      <div className="grid gap-3.5 px-6 py-2.5 text-xs text-[#5C6C75] uppercase tracking-wide" style={{ gridTemplateColumns: gridCols }}>
         <span />
         <span>Severity</span>
         <span>Finding</span>
-        <span style={{ textAlign: "right" }}>Impact</span>
+        <span className="text-right">Impact</span>
         <span />
       </div>
 
       {filteredFindings.length === 0 ? (
-        <div style={{ padding: "40px 22px", textAlign: "center", color: "#5C6C75" }}>
+        <div className="py-10 text-center text-[#5C6C75]">
           No findings match your filters
         </div>
       ) : (
@@ -1005,18 +692,11 @@ function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filter
             <div
               key={f.id}
               onClick={() => handleFindingClick(f.id)}
-              className="row"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "14px 96px minmax(0, 1fr) 90px 14px",
-                gap: 14,
-                padding: "13px 22px",
-                alignItems: "center",
-                borderTop: "0.5px solid #0E2230",
-                cursor: "pointer",
-              }}
+              className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+              style={{ gridTemplateColumns: gridCols }}
             >
               <span
+                className={isCritical ? "animate-pulse" : ""}
                 style={{
                   width: 6,
                   height: 6,
@@ -1025,25 +705,23 @@ function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filter
                   boxShadow: isCritical ? "0 0 8px rgba(255,105,96,0.4)" : undefined,
                 }}
               />
-              <Pill variant={severityToPill[f.severity] || "low"}>{f.severity.toUpperCase()}</Pill>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 15, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {f.title}
-                </div>
-                <div style={{ fontSize: 12, color: "#5C6C75", fontFamily: "ui-monospace, monospace", marginTop: 4 }}>
+              <Pill variant={severityToVariant(f.severity)}>{f.severity.toUpperCase()}</Pill>
+              <div className="min-w-0">
+                <div className="text-[15px] text-white truncate">{f.title}</div>
+                <div className="text-xs text-[#5C6C75] font-mono mt-1">
                   {f.agent.replace(/_/g, " ")} · {timeAgo(f.created_at)}
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
+              <div className="text-right">
                 {f.estimated_monthly_savings_usd ? (
-                  <span style={{ color: "#00ED64", fontWeight: 600, fontSize: 13 }}>
+                  <span className="text-mdb-leaf font-semibold text-[13px]">
                     ${f.estimated_monthly_savings_usd.toLocaleString()}
-                    <span style={{ fontSize: 12, color: "#5C6C75" }}>/mo</span>
+                    <span className="text-xs text-[#5C6C75]">/mo</span>
                   </span>
                 ) : isCritical ? (
-                  <span style={{ color: "#FF6960", fontWeight: 600, fontSize: 11 }}>REVIEW</span>
+                  <span className="text-[#FF6960] font-semibold text-[11px]">REVIEW</span>
                 ) : (
-                  <span style={{ color: "#889397", fontSize: 11 }}>review</span>
+                  <span className="text-[#889397] text-[11px]">review</span>
                 )}
               </div>
               <ChevronIcon />
@@ -1052,24 +730,13 @@ function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filter
         })
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "14px 22px",
-          borderTop: "0.5px solid #0E2230",
-          fontSize: 12,
-        }}
-      >
-        <span style={{ color: "#5C6C75" }}>
-          Showing <span style={{ color: "#C5CDD3" }}>{filteredFindings.length}</span> of <span style={{ color: "#C5CDD3" }}>{findings.length}</span> ·{" "}
-          <span style={{ color: "#00ED64" }}>saved ${thisWeekSavings.toLocaleString()}/mo this week</span>
+      <TableFooter>
+        <span className="text-[#5C6C75]">
+          Showing <span className="text-[#C5CDD3]">{filteredFindings.length}</span> of <span className="text-[#C5CDD3]">{findings.length}</span> ·{" "}
+          <span className="text-mdb-leaf">saved ${thisWeekSavings.toLocaleString()}/mo this week</span>
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link to="/findings" style={{ color: "#00ED64", textDecoration: "none" }}>Open in Findings</Link>
-        </div>
-      </div>
+        <Link to="/findings" className="text-mdb-leaf hover:underline">Open in Findings</Link>
+      </TableFooter>
     </>
   );
 }
@@ -1121,29 +788,20 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
     return result;
   }, [filters]);
 
+  const gridCols = "28px 96px minmax(0,1fr) 90px 14px";
+
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "28px 96px minmax(0, 1fr) 90px 14px",
-          gap: 14,
-          padding: "10px 22px",
-          fontSize: 12,
-          color: "#5C6C75",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
+      <div className="grid gap-3.5 px-6 py-2.5 text-xs text-[#5C6C75] uppercase tracking-wide" style={{ gridTemplateColumns: gridCols }}>
         <span />
         <span>Status</span>
         <span>Workflow</span>
-        <span style={{ textAlign: "right" }}>Next run</span>
+        <span className="text-right">Next run</span>
         <span />
       </div>
 
       {filteredWorkflows.length === 0 ? (
-        <div style={{ padding: "40px 22px", textAlign: "center", color: "#5C6C75" }}>
+        <div className="py-10 text-center text-[#5C6C75]">
           No workflows match your filters
         </div>
       ) : (
@@ -1151,55 +809,34 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
           <div
             key={w.id}
             onClick={() => navigate("/workflows")}
-            className="row"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "28px 96px minmax(0, 1fr) 90px 14px",
-              gap: 14,
-              padding: "13px 22px",
-              alignItems: "center",
-              borderTop: "0.5px solid #0E2230",
-              cursor: "pointer",
-            }}
+            className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+            style={{ gridTemplateColumns: gridCols }}
           >
             {iconChips[w.iconType]}
-            <Pill variant={w.status === "scanning" ? "scan" : "gray"}>
+            <Pill variant={w.status === "scanning" ? "scan" : "muted"} showDot={w.status === "scanning"}>
               {w.status === "scanning" ? "SCANNING" : "ACTIVE"}
             </Pill>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 15, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {w.name}
-              </div>
-              <div style={{ fontSize: 12, color: "#5C6C75", marginTop: 4 }}>
+            <div className="min-w-0">
+              <div className="text-[15px] text-white truncate">{w.name}</div>
+              <div className="text-xs text-[#5C6C75] mt-1">
                 {w.schedule} · {w.scope} · ran {w.lastRunAt} ·{" "}
                 <span style={{ color: severityColors[w.findingsSeverity] }}>{w.findingsCount} findings</span>
               </div>
             </div>
-            <div style={{ textAlign: "right", fontSize: 12, color: "#5C6C75" }}>{w.nextRunIn}</div>
+            <div className="text-right text-xs text-[#5C6C75]">{w.nextRunIn}</div>
             <ChevronIcon />
           </div>
         ))
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "14px 22px",
-          borderTop: "0.5px solid #0E2230",
-          fontSize: 12,
-        }}
-      >
-        <span style={{ color: "#5C6C75" }}>
-          Showing <span style={{ color: "#C5CDD3" }}>{filteredWorkflows.length}</span> of <span style={{ color: "#C5CDD3" }}>{MOCK_WORKFLOWS.length}</span> · monitoring{" "}
-          <span style={{ color: "#C5CDD3" }}>12</span> clusters ·{" "}
-          <span style={{ color: "#00ED64" }}>5 findings this week</span>
+      <TableFooter>
+        <span className="text-[#5C6C75]">
+          Showing <span className="text-[#C5CDD3]">{filteredWorkflows.length}</span> of <span className="text-[#C5CDD3]">{MOCK_WORKFLOWS.length}</span> · monitoring{" "}
+          <span className="text-[#C5CDD3]">12</span> clusters ·{" "}
+          <span className="text-mdb-leaf">5 findings this week</span>
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link to="/workflows" style={{ color: "#00ED64", textDecoration: "none" }}>Browse library</Link>
-        </div>
-      </div>
+        <Link to="/workflows" className="text-mdb-leaf hover:underline">Browse library</Link>
+      </TableFooter>
     </>
   );
 }
@@ -1210,14 +847,6 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
 
 function HistoryTab({ filters }: { filters: FilterState }) {
   const navigate = useNavigate();
-
-  const typeToPill: Record<string, PillVariant> = {
-    scan: "green",
-    finding: "med",
-    critical: "crit",
-    resolved: "green",
-    config: "low",
-  };
 
   const filteredHistory = useMemo(() => {
     const allItems: (HistoryItem & { day: string })[] = [];
@@ -1255,76 +884,48 @@ function HistoryTab({ filters }: { filters: FilterState }) {
     return Object.entries(groups);
   }, [filteredHistory]);
 
+  const gridCols = "78px 96px minmax(0,1fr) 90px 14px";
+
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "78px 96px minmax(0, 1fr) 90px 14px",
-          gap: 14,
-          padding: "10px 22px",
-          fontSize: 12,
-          color: "#5C6C75",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
+      <div className="grid gap-3.5 px-6 py-2.5 text-xs text-[#5C6C75] uppercase tracking-wide" style={{ gridTemplateColumns: gridCols }}>
         <span>Time</span>
         <span>Type</span>
         <span>Event</span>
-        <span style={{ textAlign: "right" }}>Context</span>
+        <span className="text-right">Context</span>
         <span />
       </div>
 
       {groupedHistory.length === 0 ? (
-        <div style={{ padding: "40px 22px", textAlign: "center", color: "#5C6C75" }}>
+        <div className="py-10 text-center text-[#5C6C75]">
           No history matches your filters
         </div>
       ) : (
         groupedHistory.map(([day, items]) => (
           <div key={day}>
-            <div
-              style={{
-                fontSize: 12,
-                color: "#5C6C75",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "14px 22px 6px",
-                borderTop: "0.5px solid #0E2230",
-              }}
-            >
+            <div className="text-xs text-[#5C6C75] uppercase tracking-wide px-6 py-3.5 border-t border-[#0E2230]">
               {day}
             </div>
             {items.map((item, i) => (
               <div
                 key={i}
-                className="row"
                 onClick={() => item.type === "finding" || item.type === "critical" ? navigate("/findings") : navigate("/runs")}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "78px 96px minmax(0, 1fr) 90px 14px",
-                  gap: 14,
-                  padding: "13px 22px",
-                  alignItems: "center",
-                  borderTop: "0.5px solid #0E2230",
-                  cursor: "pointer",
-                }}
+                className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+                style={{ gridTemplateColumns: gridCols }}
               >
-                <span style={{ fontSize: 12, color: "#5C6C75", fontFamily: "ui-monospace, monospace" }}>{item.time}</span>
-                <Pill variant={typeToPill[item.type] || "low"}>{item.type.toUpperCase()}</Pill>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#5C6C75", marginTop: 4 }}>
+                <span className="text-xs text-[#5C6C75] font-mono">{item.time}</span>
+                <Pill variant={item.pill}>{item.type.toUpperCase()}</Pill>
+                <div className="min-w-0">
+                  <div className="text-[15px] text-white truncate">{item.title}</div>
+                  <div className="text-xs text-[#5C6C75] mt-1">
                     {item.metaHighlight === "amber" ? (
-                      <span><span style={{ color: "#FFC010" }}>{item.meta.split("·")[0]}</span>·{item.meta.split("·").slice(1).join("·")}</span>
+                      <span><span className="text-[#FFC010]">{item.meta.split("·")[0]}</span>·{item.meta.split("·").slice(1).join("·")}</span>
                     ) : (
                       item.meta
                     )}
                   </div>
                 </div>
-                <div style={{ textAlign: "right", fontSize: 12, color: item.context.startsWith("$") ? "#00ED64" : item.context === "unresolved" ? "#FF6960" : "#5C6C75" }}>
+                <div className={`text-right text-xs ${item.context.startsWith("$") ? "text-mdb-leaf" : item.context === "unresolved" ? "text-[#FF6960]" : "text-[#5C6C75]"}`}>
                   {item.context}
                 </div>
                 <ChevronIcon />
@@ -1334,23 +935,12 @@ function HistoryTab({ filters }: { filters: FilterState }) {
         ))
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "14px 22px",
-          borderTop: "0.5px solid #0E2230",
-          fontSize: 12,
-        }}
-      >
-        <span style={{ color: "#5C6C75" }}>
-          Showing <span style={{ color: "#C5CDD3" }}>{filteredHistory.length}</span> of <span style={{ color: "#C5CDD3" }}>24</span> events · last 7 days
+      <TableFooter>
+        <span className="text-[#5C6C75]">
+          Showing <span className="text-[#C5CDD3]">{filteredHistory.length}</span> of <span className="text-[#C5CDD3]">24</span> events · last 7 days
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link to="/runs" style={{ color: "#00ED64", textDecoration: "none" }}>View all runs</Link>
-        </div>
-      </div>
+        <Link to="/runs" className="text-mdb-leaf hover:underline">View all runs</Link>
+      </TableFooter>
     </>
   );
 }
@@ -1376,10 +966,10 @@ function ActivityTab({ filters }: { filters: FilterState }) {
 
     if (filters.type !== "all") {
       result = result.filter((item) => {
-        if (filters.type === "scan") return item.isLive || item.pill === "blue";
-        if (filters.type === "finding") return item.pill === "med";
-        if (filters.type === "critical") return item.pill === "crit";
-        if (filters.type === "resolved") return item.pill === "green" && !item.isLive;
+        if (filters.type === "scan") return item.isLive || item.pill === "info";
+        if (filters.type === "finding") return item.pill === "medium";
+        if (filters.type === "critical") return item.pill === "critical";
+        if (filters.type === "resolved") return item.pill === "success" && !item.isLive;
         return true;
       });
     }
@@ -1387,29 +977,20 @@ function ActivityTab({ filters }: { filters: FilterState }) {
     return result;
   }, [filters]);
 
+  const gridCols = "78px 96px minmax(0,1fr) 90px 14px";
+
   return (
     <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "78px 96px minmax(0, 1fr) 90px 14px",
-          gap: 14,
-          padding: "10px 22px",
-          fontSize: 12,
-          color: "#5C6C75",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
+      <div className="grid gap-3.5 px-6 py-2.5 text-xs text-[#5C6C75] uppercase tracking-wide" style={{ gridTemplateColumns: gridCols }}>
         <span>When</span>
         <span>Type</span>
         <span>Event</span>
-        <span style={{ textAlign: "right" }}>Impact</span>
+        <span className="text-right">Impact</span>
         <span />
       </div>
 
       {filteredActivity.length === 0 ? (
-        <div style={{ padding: "40px 22px", textAlign: "center", color: "#5C6C75" }}>
+        <div className="py-10 text-center text-[#5C6C75]">
           No activity matches your filters
         </div>
       ) : (
@@ -1418,39 +999,28 @@ function ActivityTab({ filters }: { filters: FilterState }) {
             return (
               <div
                 key={i}
-                className="row"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "78px 96px minmax(0, 1fr) 90px 14px",
-                  gap: 14,
-                  padding: "13px 22px",
-                  alignItems: "center",
-                  borderTop: "0.5px solid rgba(0,237,100,0.18)",
-                  background: "rgba(0,237,100,0.025)",
-                  cursor: "pointer",
-                }}
                 onClick={() => navigate("/runs")}
+                className="grid gap-3.5 px-6 py-3.5 items-center border-t border-mdb-leaf/20 bg-mdb-leaf/[0.025] cursor-pointer hover:bg-mdb-leaf/[0.04] transition-colors"
+                style={{ gridTemplateColumns: gridCols }}
               >
-                <span style={{ fontSize: 12, color: "#00ED64" }}>{item.when}</span>
-                <Pill variant="scan">SCANNING</Pill>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#5C6C75", marginTop: 4 }}>
+                <span className="text-xs text-mdb-leaf">{item.when}</span>
+                <Pill variant="scan" showDot pulseDot>SCANNING</Pill>
+                <div className="min-w-0">
+                  <div className="text-[15px] text-white truncate">{item.title}</div>
+                  <div className="text-xs text-[#5C6C75] mt-1">
                     {item.meta.includes("findings so far") ? (
                       <span>
-                        {item.meta.split("·")[0]}· <span style={{ color: "#FFC010" }}>{item.meta.split("·")[1]}</span> ·{item.meta.split("·")[2]}
+                        {item.meta.split("·")[0]}· <span className="text-[#FFC010]">{item.meta.split("·")[1]}</span> ·{item.meta.split("·")[2]}
                       </span>
                     ) : (
                       item.meta
                     )}
                   </div>
-                  <div style={{ height: 2, background: "rgba(0,237,100,0.1)", borderRadius: 1, marginTop: 8, overflow: "hidden" }}>
-                    <div className="scan-progress" style={{ height: "100%", background: "#00ED64", borderRadius: 1 }} />
+                  <div className="h-0.5 bg-mdb-leaf/10 rounded mt-2 overflow-hidden">
+                    <div className="h-full bg-mdb-leaf rounded animate-pulse" style={{ width: "65%" }} />
                   </div>
                 </div>
-                <div style={{ textAlign: "right", fontSize: 12, color: "#5C6C75" }}>{item.impact}</div>
+                <div className="text-right text-xs text-[#5C6C75]">{item.impact}</div>
                 <ChevronIcon />
               </div>
             );
@@ -1459,36 +1029,28 @@ function ActivityTab({ filters }: { filters: FilterState }) {
           return (
             <div
               key={i}
-              className="row"
-              onClick={() => item.pill === "crit" || item.pill === "med" ? navigate("/findings") : navigate("/runs")}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "78px 96px minmax(0, 1fr) 90px 14px",
-                gap: 14,
-                padding: "13px 22px",
-                alignItems: "center",
-                borderTop: "0.5px solid #0E2230",
-                cursor: "pointer",
-              }}
+              onClick={() => item.pill === "critical" || item.pill === "medium" ? navigate("/findings") : navigate("/runs")}
+              className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+              style={{ gridTemplateColumns: gridCols }}
             >
-              <span style={{ fontSize: 12, color: item.whenColor || "#5C6C75" }}>{item.when}</span>
-              <Pill variant={item.pill}>{item.pill === "crit" ? "CRITICAL" : item.pill === "med" ? "FINDING" : item.pill === "green" ? "RESOLVED" : item.pill === "blue" ? "SCAN" : item.pill.toUpperCase()}</Pill>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 15, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {item.title}
-                </div>
-                <div style={{ fontSize: 12, color: "#5C6C75", marginTop: 4 }}>{item.meta}</div>
+              <span className={`text-xs ${item.whenColor ? "" : "text-[#5C6C75]"}`} style={{ color: item.whenColor }}>{item.when}</span>
+              <Pill variant={item.pill}>
+                {item.pill === "critical" ? "CRITICAL" : item.pill === "medium" ? "FINDING" : item.pill === "success" ? "RESOLVED" : item.pill === "info" ? "SCAN" : item.pill.toUpperCase()}
+              </Pill>
+              <div className="min-w-0">
+                <div className="text-[15px] text-white truncate">{item.title}</div>
+                <div className="text-xs text-[#5C6C75] mt-1">{item.meta}</div>
               </div>
-              <div style={{ textAlign: "right" }}>
+              <div className="text-right">
                 {item.impact.startsWith("$") ? (
-                  <span style={{ color: "#00ED64", fontWeight: 600, fontSize: 13 }}>
+                  <span className="text-mdb-leaf font-semibold text-[13px]">
                     {item.impact.replace("/mo", "")}
-                    <span style={{ fontSize: 12, color: "#5C6C75" }}>/mo</span>
+                    <span className="text-xs text-[#5C6C75]">/mo</span>
                   </span>
                 ) : item.impact === "review" ? (
-                  <span style={{ color: "#FF6960", fontWeight: 600, fontSize: 11 }}>review</span>
+                  <span className="text-[#FF6960] font-semibold text-[11px]">review</span>
                 ) : (
-                  <span style={{ color: "#5C6C75", fontSize: 11 }}>{item.impact}</span>
+                  <span className="text-[#5C6C75] text-[11px]">{item.impact}</span>
                 )}
               </div>
               <ChevronIcon />
@@ -1497,22 +1059,13 @@ function ActivityTab({ filters }: { filters: FilterState }) {
         })
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "14px 22px",
-          borderTop: "0.5px solid #0E2230",
-          fontSize: 12,
-        }}
-      >
-        <span style={{ color: "#5C6C75", display: "flex", alignItems: "center", gap: 6 }}>
-          <span className="live-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "#00ED64" }} />
+      <TableFooter>
+        <span className="text-[#5C6C75] flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-mdb-leaf animate-pulse" />
           Updates in real time as MDBA scans your estate
         </span>
-        <span style={{ color: "#00ED64", cursor: "pointer" }}>Load older</span>
-      </div>
+        <span className="text-mdb-leaf cursor-pointer hover:underline">Load older</span>
+      </TableFooter>
     </>
   );
 }
@@ -1534,19 +1087,25 @@ export function Dashboard() {
 
   if (err) {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
-        <p className="font-medium">Could not load dashboard</p>
-        <p className="text-sm mt-2 text-amber-200/80">{err}</p>
-        <p className="text-xs mt-4 text-slate-400">
-          Start MongoDB (<code className="text-mdb-leaf">docker compose up -d</code>) and the API (
-          <code className="text-mdb-leaf">uvicorn app.main:app</code>).
-        </p>
-      </div>
+      <PageContainer>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+          <p className="font-medium">Could not load dashboard</p>
+          <p className="text-sm mt-2 text-amber-200/80">{err}</p>
+          <p className="text-xs mt-4 text-slate-400">
+            Start MongoDB (<code className="text-mdb-leaf">docker compose up -d</code>) and the API (
+            <code className="text-mdb-leaf">uvicorn app.main:app</code>).
+          </p>
+        </div>
+      </PageContainer>
     );
   }
 
   if (!data) {
-    return <p className="text-slate-400">Loading cluster intelligence...</p>;
+    return (
+      <PageContainer>
+        <p className="text-slate-400">Loading cluster intelligence...</p>
+      </PageContainer>
+    );
   }
 
   const topFinding = getHighestSeverityFinding(data.top_findings);
@@ -1555,110 +1114,71 @@ export function Dashboard() {
   const clusterHealth = getClusterHealth(MOCK_CLUSTERS);
 
   return (
-    <>
-      <style>{animationStyles}</style>
-
-      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        {/* ACTION STRIP */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 22 }}>
-          <Link
-            to="/create"
-            style={{
-              background: "#00ED64",
-              color: "#001E2B",
-              padding: "9px 16px",
-              borderRadius: 6,
-              fontWeight: 500,
-              fontSize: 15,
-              textDecoration: "none",
-            }}
-          >
-            + New workflow
-          </Link>
-        </div>
-
-        {/* HERO CARD */}
-        <div
-          style={{
-            position: "relative",
-            overflow: "hidden",
-            background: "linear-gradient(135deg, #062A1F 0%, #001E2B 60%)",
-            border: "0.5px solid #1C3329",
-            borderRadius: 12,
-            padding: "32px 36px",
-            marginBottom: 24,
-          }}
+    <PageContainer>
+      {/* ACTION STRIP */}
+      <div className="flex justify-end gap-2.5 mb-6">
+        <Link
+          to="/create"
+          className="bg-mdb-leaf text-[#001E2B] px-4 py-2.5 rounded-md font-medium text-[15px]"
         >
-          <NetworkGraphSVG />
+          + New workflow
+        </Link>
+      </div>
 
-          <div style={{ maxWidth: 460, position: "relative" }}>
-            <div style={{ fontSize: 12, color: "#00ED64", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>
-              YOUR ESTATE
-            </div>
+      {/* HERO CARD */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#062A1F] to-[#001E2B] border-[0.5px] border-[#1C3329] rounded-xl p-8 mb-6">
+        <NetworkGraphSVG />
 
-            <h1
-              style={{
-                fontSize: 36,
-                color: "#FFFFFF",
-                fontWeight: 500,
-                lineHeight: 1.2,
-                letterSpacing: "-0.015em",
-                marginTop: 12,
-              }}
+        <div className="max-w-[460px] relative">
+          <div className="text-xs text-mdb-leaf tracking-wider uppercase font-medium">
+            YOUR ESTATE
+          </div>
+
+          <h1 className="text-4xl text-white font-medium leading-tight tracking-tight mt-3">
+            {hasCriticals ? (
+              <>
+                Looking <span className="text-mdb-leaf">mostly healthy</span> this morning
+              </>
+            ) : (
+              <>
+                Looking <span className="text-mdb-leaf">healthy</span> this morning
+              </>
+            )}
+          </h1>
+
+          <p className="text-[15px] text-[#C5CDD3] leading-relaxed mt-3.5">
+            {clusterHealth.healthy} of your {clusterHealth.total} cluster{clusterHealth.total !== 1 ? "s" : ""} {clusterHealth.total === 1 ? "is" : "are"} running clean.
+            {hasCriticals && topClusterName && (
+              <>
+                {" "}
+                <span className="text-[#FF6960]">{topClusterName}</span> needs your attention.
+              </>
+            )}
+          </p>
+
+          <div className="mt-6 flex gap-2.5 items-center">
+            <Link
+              to={topFinding ? `/findings?id=${topFinding.id}` : "/findings"}
+              className="bg-mdb-leaf text-[#001E2B] px-6 py-3 rounded-md font-medium text-[15px]"
             >
-              {hasCriticals ? (
-                <>
-                  Looking <span style={{ color: "#00ED64" }}>mostly healthy</span> this morning
-                </>
-              ) : (
-                <>
-                  Looking <span style={{ color: "#00ED64" }}>healthy</span> this morning
-                </>
-              )}
-            </h1>
-
-            <p style={{ fontSize: 15, color: "#C5CDD3", lineHeight: 1.6, marginTop: 14 }}>
-              {clusterHealth.healthy} of your {clusterHealth.total} cluster{clusterHealth.total !== 1 ? "s" : ""} {clusterHealth.total === 1 ? "is" : "are"} running clean.
-              {hasCriticals && topClusterName && (
-                <>
-                  {" "}
-                  <span style={{ color: "#FF6960" }}>{topClusterName}</span> needs your attention.
-                </>
-              )}
-            </p>
-
-            <div style={{ marginTop: 24, display: "flex", gap: 10, alignItems: "center" }}>
-              <Link
-                to={topFinding ? `/findings?id=${topFinding.id}` : "/findings"}
-                style={{
-                  background: "#00ED64",
-                  color: "#001E2B",
-                  padding: "11px 22px",
-                  borderRadius: 6,
-                  fontWeight: 500,
-                  fontSize: 15,
-                  textDecoration: "none",
-                }}
-              >
-                {hasCriticals && topClusterName ? `Take a look at ${topClusterName}` : "View findings"}
-              </Link>
-              <Link to="/findings" style={{ color: "#889397", padding: "11px 16px", fontSize: 15, textDecoration: "none" }}>
-                Browse all findings
-              </Link>
-            </div>
+              {hasCriticals && topClusterName ? `Take a look at ${topClusterName}` : "View findings"}
+            </Link>
+            <Link to="/findings" className="text-[#889397] px-4 py-3 text-[15px] hover:text-white transition-colors">
+              Browse all findings
+            </Link>
           </div>
         </div>
-
-        {/* STAT CARDS */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, alignItems: "stretch" }}>
-          <StatCardFindings findings={data.top_findings} />
-          <StatCardSavings totalSavings={data.total_addressable_savings_usd} findings={data.top_findings} />
-          <StatCardClusters clusters={MOCK_CLUSTERS} />
-        </div>
-
-        {/* TABBED WORKSPACE */}
-        <TabbedWorkspace data={data} />
       </div>
-    </>
+
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-3 gap-3 items-stretch">
+        <StatCardFindings findings={data.top_findings} />
+        <StatCardSavings totalSavings={data.total_addressable_savings_usd} findings={data.top_findings} />
+        <StatCardClusters clusters={MOCK_CLUSTERS} />
+      </div>
+
+      {/* TABBED WORKSPACE */}
+      <TabbedWorkspace data={data} />
+    </PageContainer>
   );
 }

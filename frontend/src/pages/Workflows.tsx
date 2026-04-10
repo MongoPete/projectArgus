@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/api";
 import type { Workflow, RunRecord } from "@/types";
+import { Pill } from "@/components/Pill";
+import { TabBar, type Tab } from "@/components/TabBar";
+import { PageContainer, PageHeader, Card, TableFooter } from "@/components/PageContainer";
 
 // =============================================================================
 // CONSTANTS & HELPERS
@@ -170,38 +173,38 @@ export function Workflows() {
     return Math.max(set.size * 2, 5); // Demo heuristic
   }, [items]);
 
+  // Tab configuration
+  const tabs: Tab<TabType>[] = [
+    { key: "active", label: "Active", count: activeCount },
+    { key: "past", label: "Past", count: pastCount },
+    { key: "all", label: "All", count: items.length },
+  ];
+
   if (err && items.length === 0) {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
-        {err}
-      </div>
+      <PageContainer>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+          {err}
+        </div>
+      </PageContainer>
     );
   }
 
-  const tabStyle = (isActive: boolean) =>
-    `px-4 py-2.5 text-sm transition-all ${
-      isActive
-        ? "text-mdb-leaf border-b-2 border-mdb-leaf"
-        : "text-[#889397] border-b-2 border-transparent hover:text-white"
-    }`;
-
   return (
-    <div className="space-y-6" data-tour="workflows">
+    <PageContainer className="space-y-6" data-tour="workflows">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Workflows</h1>
-          <p className="text-slate-400 mt-1 text-sm max-w-xl">
-            Automated monitoring pipelines that watch your clusters and report findings — write operations always require your approval.
-          </p>
-        </div>
-        <Link
-          to="/workflows/new"
-          className="rounded-lg bg-mdb-leaf text-mdb-forest px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 transition-colors"
-        >
-          + New workflow
-        </Link>
-      </div>
+      <PageHeader
+        title="Workflows"
+        description="Automated monitoring pipelines that watch your clusters and report findings — write operations always require your approval."
+        actions={
+          <Link
+            to="/workflows/new"
+            className="rounded-lg bg-mdb-leaf text-mdb-forest px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 transition-colors"
+          >
+            + New workflow
+          </Link>
+        }
+      />
 
       {err && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
@@ -210,34 +213,16 @@ export function Workflows() {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#112733]">
-        <button
-          type="button"
-          onClick={() => setActiveTab("active")}
-          className={tabStyle(activeTab === "active")}
-        >
-          Active <span className="text-[#5C6C75] ml-1">{activeCount}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("past")}
-          className={tabStyle(activeTab === "past")}
-        >
-          Past <span className="text-[#5C6C75] ml-1">{pastCount}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("all")}
-          className={tabStyle(activeTab === "all")}
-        >
-          All <span className="text-[#5C6C75] ml-1">{items.length}</span>
-        </button>
-      </div>
+      <TabBar
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {/* Workflow cards */}
       <div className="space-y-3">
         {filteredItems.length === 0 && (
-          <div className="glass rounded-xl p-8 text-center">
+          <Card className="p-8 text-center">
             <p className="text-slate-400 mb-4">No workflows yet. Create one to start monitoring your clusters.</p>
             <Link
               to="/workflows/new"
@@ -245,7 +230,7 @@ export function Workflows() {
             >
               + New workflow
             </Link>
-          </div>
+          </Card>
         )}
 
         {filteredItems.map((w) => {
@@ -255,10 +240,11 @@ export function Workflows() {
           const isActive = w.trigger !== "manual" || !!meta?.lastRun;
 
           return (
-            <div
+            <Card
               key={w.id}
               onClick={() => nav(`/workflows/${w.id}`)}
-              className="glass rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between cursor-pointer hover:bg-white/[0.03] transition-colors"
+              hoverable
+              className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between"
             >
               <div className="flex gap-4 items-start">
                 {/* Icon square with status dot */}
@@ -289,15 +275,9 @@ export function Workflows() {
                       }}
                     />
                     <h2 className="font-medium text-white">{w.name}</h2>
-                    <span
-                      className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${
-                        isActive
-                          ? "bg-mdb-leaf/15 text-mdb-leaf border border-mdb-leaf/25"
-                          : "bg-slate-600/20 text-slate-400 border border-slate-600/30"
-                      }`}
-                    >
+                    <Pill variant={isActive ? "active" : "paused"}>
                       {isActive ? "Active" : "Paused"}
-                    </span>
+                    </Pill>
                   </div>
                   <p className="text-sm text-slate-400 mt-1 truncate max-w-md">
                     {w.description || "—"}
@@ -350,25 +330,27 @@ export function Workflows() {
                   {deletingId === w.id ? "..." : "✕"}
                 </button>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
 
       {/* Footer bar */}
       {items.length > 0 && (
-        <div className="bg-mdb-slate/60 border border-[#112733] rounded-lg px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-[#5C6C75]">
-            {activeCount} active workflow{activeCount !== 1 ? "s" : ""} monitoring {totalClusters} cluster{totalClusters !== 1 ? "s" : ""}
-          </span>
-          <Link
-            to="/runs"
-            className="text-xs text-mdb-leaf hover:underline"
-          >
-            View run history
-          </Link>
-        </div>
+        <Card className="px-4 py-2.5">
+          <TableFooter>
+            <span className="text-xs text-[#5C6C75]">
+              {activeCount} active workflow{activeCount !== 1 ? "s" : ""} monitoring {totalClusters} cluster{totalClusters !== 1 ? "s" : ""}
+            </span>
+            <Link
+              to="/runs"
+              className="text-xs text-mdb-leaf hover:underline"
+            >
+              View run history
+            </Link>
+          </TableFooter>
+        </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

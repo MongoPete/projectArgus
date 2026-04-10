@@ -271,7 +271,7 @@ export function FlowBuilder() {
   const [flowName, setFlowName] = useState("Untitled flow");
   const [targetCluster, setTargetCluster] = useState("prod-east");
   const [savedId, setSavedId] = useState<string | null>(null);
-  const [savedList, setSavedList] = useState<ToolFlow[]>([]);
+  const [_savedList, setSavedList] = useState<ToolFlow[]>([]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -508,12 +508,6 @@ export function FlowBuilder() {
     [nodes, executeStreamRun]
   );
 
-  const resetRunner = useCallback(() => {
-    streamAbortRef.current?.abort();
-    setRunnerLines([]);
-    setErr(null);
-  }, []);
-
   // Auto-run during tour
   useEffect(() => {
     if (!tourActive || nodes.length === 0 || running || tourRanRef.current) return;
@@ -564,23 +558,6 @@ export function FlowBuilder() {
       setSaveBusy(false);
     }
   }, [flowName, nodes, edges, savedId]);
-
-  const loadFlow = useCallback(
-    async (id: string) => {
-      setErr(null);
-      try {
-        const f = await api.flows.get(id);
-        setFlowName(f.name);
-        setSavedId(f.id);
-        setNodes(f.nodes as Node[]);
-        setEdges(f.edges as Edge[]);
-        setRunnerLines([]);
-      } catch (e) {
-        setErr((e as Error).message);
-      }
-    },
-    [setNodes, setEdges]
-  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-[#001E2B] text-slate-200">
