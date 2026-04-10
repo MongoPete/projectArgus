@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/api";
+import { PageContainer, PageHeader, Card } from "@/components/PageContainer";
 
 type ConnStatus = {
   connected: boolean;
@@ -19,8 +20,8 @@ type LlmStatus = {
 function StatusDot({ ok }: { ok: boolean }) {
   return (
     <span
-      className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${
-        ok ? "bg-mdb-leaf shadow-[0_0_6px_rgba(0,237,100,0.5)]" : "bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+      className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+        ok ? "bg-mdb-leaf" : "bg-[#FF6960]"
       }`}
     />
   );
@@ -87,7 +88,7 @@ export function Settings() {
     try {
       const res = await api.settings.saveConnection({ uri: uri.trim(), db_name: dbName });
       if (res.ok) {
-        setConnResult({ ok: true, message: `Saved — connected to ${res.cluster_name}. Demo data seeded.` });
+        setConnResult({ ok: true, message: `Saved. Connected to ${res.cluster_name}. Demo data seeded.` });
         setUri("");
         loadConnection();
       } else {
@@ -127,7 +128,7 @@ export function Settings() {
       if (res.ok) {
         setLlmResult({
           ok: true,
-          message: res.configured ? "OpenAI key saved — advisor will use GPT." : "Key cleared — using demo mode.",
+          message: res.configured ? "OpenAI key saved. Advisor will use GPT." : "Key cleared. Using demo mode.",
         });
         setApiKey("");
         loadLlm();
@@ -153,35 +154,33 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <header>
-        <h1 className="text-2xl font-semibold text-white">Settings</h1>
-        <p className="text-slate-400 mt-1">
-          Configure your MongoDB connection and LLM keys. Changes apply immediately (in-memory only).
-        </p>
-      </header>
+    <PageContainer className="space-y-6">
+      <PageHeader
+        title="Settings"
+        description="Configure your MongoDB connection and LLM keys."
+      />
 
       {/* API status */}
-      <div className="glass rounded-xl p-5 flex items-center gap-3">
+      <Card className="p-5 flex items-center gap-3">
         <StatusDot ok={!!health} />
-        <div>
-          <span className="text-sm text-white font-medium">API server</span>
+        <div className="text-sm">
+          <span className="text-white font-medium">API server</span>
           {health ? (
-            <span className="text-sm text-slate-400 ml-2">{health.message}</span>
+            <span className="text-[#889397] ml-2">{health.message}</span>
           ) : (
-            <span className="text-sm text-amber-200 ml-2">Unreachable — start the FastAPI server.</span>
+            <span className="text-[#FFC010] ml-2">Unreachable. Start the FastAPI server.</span>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* MongoDB Connection */}
-      <section className="glass rounded-xl p-6 space-y-5">
+      <Card className="p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-white">MongoDB Connection</h2>
           {conn && (
             <div className="flex items-center gap-2 text-xs">
               <StatusDot ok={conn.connected} />
-              <span className={conn.connected ? "text-mdb-leaf" : "text-red-300"}>
+              <span className={conn.connected ? "text-mdb-leaf" : "text-[#FF6960]"}>
                 {conn.connected
                   ? `${conn.cluster_name} (v${conn.server_version})`
                   : "Not connected"}
@@ -191,31 +190,31 @@ export function Settings() {
         </div>
 
         {conn?.connected && (
-          <div className="rounded-lg bg-mdb-forest/30 border border-mdb-leaf/15 px-4 py-3 text-xs space-y-1">
-            <div className="text-slate-400">
-              URI: <span className="text-slate-300 font-mono">{conn.uri_masked}</span>
+          <div className="rounded-lg bg-[#0A1A1F] border border-[#112733] px-4 py-3 text-xs space-y-1">
+            <div className="text-[#5C6C75]">
+              URI: <span className="text-[#C5CDD3] font-mono">{conn.uri_masked}</span>
             </div>
-            <div className="text-slate-400">
-              Database: <span className="text-slate-300 font-mono">{conn.db_name}</span>
+            <div className="text-[#5C6C75]">
+              Database: <span className="text-[#C5CDD3] font-mono">{conn.db_name}</span>
             </div>
           </div>
         )}
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Connection string</label>
+            <label className="block text-xs text-[#5C6C75] mb-1.5">Connection string</label>
             <input
               type="password"
-              className="w-full rounded-xl bg-mdb-slate border border-mdb-leaf/20 px-4 py-3 text-sm text-white placeholder:text-slate-600 font-mono focus:border-mdb-leaf/50 focus:outline-none focus:ring-1 focus:ring-mdb-leaf/30"
+              className="w-full rounded-lg bg-[#001E2B] border border-[#112733] px-4 py-3 text-sm text-white placeholder:text-[#3D4F58] font-mono focus:border-mdb-leaf/50 focus:outline-none"
               placeholder="mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/"
               value={uri}
               onChange={(e) => setUri(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1.5">Database name</label>
+            <label className="block text-xs text-[#5C6C75] mb-1.5">Database name</label>
             <input
-              className="w-full rounded-xl bg-mdb-slate border border-mdb-leaf/20 px-4 py-3 text-sm text-white placeholder:text-slate-600 font-mono focus:border-mdb-leaf/50 focus:outline-none focus:ring-1 focus:ring-mdb-leaf/30"
+              className="w-full rounded-lg bg-[#001E2B] border border-[#112733] px-4 py-3 text-sm text-white placeholder:text-[#3D4F58] font-mono focus:border-mdb-leaf/50 focus:outline-none"
               placeholder="mdba_demo"
               value={dbName}
               onChange={(e) => setDbName(e.target.value)}
@@ -226,17 +225,17 @@ export function Settings() {
               type="button"
               disabled={!uri.trim() || connTesting}
               onClick={testConnection}
-              className="rounded-xl border border-mdb-leaf/30 px-4 py-2.5 text-sm text-slate-200 hover:bg-mdb-leaf/10 disabled:opacity-40 transition-colors"
+              className="rounded-lg border border-[#112733] px-4 py-2.5 text-sm text-[#889397] hover:bg-white/[0.02] hover:text-[#C5CDD3] disabled:opacity-40 transition-colors"
             >
-              {connTesting ? "Testing…" : "Test connection"}
+              {connTesting ? "Testing..." : "Test connection"}
             </button>
             <button
               type="button"
               disabled={!uri.trim() || connSaving}
               onClick={saveConnection}
-              className="rounded-xl bg-mdb-leaf text-mdb-forest px-4 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 disabled:opacity-40 transition-colors"
+              className="rounded-lg bg-mdb-leaf/10 border border-mdb-leaf/30 px-4 py-2.5 text-sm font-medium text-mdb-leaf hover:bg-mdb-leaf/20 disabled:opacity-40 transition-colors"
             >
-              {connSaving ? "Connecting…" : "Save & connect"}
+              {connSaving ? "Connecting..." : "Save & connect"}
             </button>
           </div>
           {connResult && (
@@ -244,47 +243,47 @@ export function Settings() {
               className={`rounded-lg px-4 py-2.5 text-sm ${
                 connResult.ok
                   ? "bg-mdb-leaf/10 border border-mdb-leaf/25 text-mdb-leaf"
-                  : "bg-red-500/10 border border-red-500/25 text-red-300"
+                  : "bg-[#FF6960]/10 border border-[#FF6960]/25 text-[#FF6960]"
               }`}
             >
               {connResult.message}
             </div>
           )}
         </div>
-      </section>
+      </Card>
 
       {/* LLM Configuration */}
-      <section className="glass rounded-xl p-6 space-y-5">
+      <Card className="p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-white">LLM Configuration</h2>
           {llm && (
             <div className="flex items-center gap-2 text-xs">
               <StatusDot ok={llm.configured} />
-              <span className={llm.configured ? "text-mdb-leaf" : "text-amber-300"}>
-                {llm.configured ? `${llm.provider} (${llm.model})` : "Demo mode — no API key"}
+              <span className={llm.configured ? "text-mdb-leaf" : "text-[#FFC010]"}>
+                {llm.configured ? `${llm.provider} (${llm.model})` : "Demo mode"}
               </span>
             </div>
           )}
         </div>
 
         {llm?.configured && llm.key_masked && (
-          <div className="rounded-lg bg-mdb-forest/30 border border-mdb-leaf/15 px-4 py-3 text-xs">
-            <span className="text-slate-400">Key: </span>
-            <span className="text-slate-300 font-mono">{llm.key_masked}</span>
+          <div className="rounded-lg bg-[#0A1A1F] border border-[#112733] px-4 py-3 text-xs">
+            <span className="text-[#5C6C75]">Key: </span>
+            <span className="text-[#C5CDD3] font-mono">{llm.key_masked}</span>
           </div>
         )}
 
-        <p className="text-xs text-slate-500 leading-relaxed">
-          The advisor chat uses OpenAI to draft workflows from natural language. Without a key, a built-in 
+        <p className="text-xs text-[#5C6C75] leading-relaxed">
+          The advisor chat uses OpenAI to draft workflows from natural language. Without a key, a built-in
           demo heuristic handles common requests.
         </p>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-slate-500 mb-1.5">OpenAI API key</label>
+            <label className="block text-xs text-[#5C6C75] mb-1.5">OpenAI API key</label>
             <input
               type="password"
-              className="w-full rounded-xl bg-mdb-slate border border-mdb-leaf/20 px-4 py-3 text-sm text-white placeholder:text-slate-600 font-mono focus:border-mdb-leaf/50 focus:outline-none focus:ring-1 focus:ring-mdb-leaf/30"
+              className="w-full rounded-lg bg-[#001E2B] border border-[#112733] px-4 py-3 text-sm text-white placeholder:text-[#3D4F58] font-mono focus:border-mdb-leaf/50 focus:outline-none"
               placeholder="sk-..."
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -295,52 +294,62 @@ export function Settings() {
               type="button"
               disabled={!apiKey.trim() || llmTesting}
               onClick={testLlm}
-              className="rounded-xl border border-mdb-leaf/30 px-4 py-2.5 text-sm text-slate-200 hover:bg-mdb-leaf/10 disabled:opacity-40 transition-colors"
+              className="rounded-lg border border-[#112733] px-4 py-2.5 text-sm text-[#889397] hover:bg-white/[0.02] hover:text-[#C5CDD3] disabled:opacity-40 transition-colors"
             >
-              {llmTesting ? "Testing…" : "Test key"}
+              {llmTesting ? "Testing..." : "Test key"}
             </button>
-            <button
-              type="button"
-              disabled={llmSaving}
-              onClick={saveLlm}
-              className="rounded-xl bg-mdb-leaf text-mdb-forest px-4 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 disabled:opacity-40 transition-colors"
-            >
-              {llmSaving ? "Saving…" : apiKey.trim() ? "Save key" : "Clear key"}
-            </button>
+            {apiKey.trim() ? (
+              <button
+                type="button"
+                disabled={llmSaving}
+                onClick={saveLlm}
+                className="rounded-lg bg-mdb-leaf/10 border border-mdb-leaf/30 px-4 py-2.5 text-sm font-medium text-mdb-leaf hover:bg-mdb-leaf/20 disabled:opacity-40 transition-colors"
+              >
+                {llmSaving ? "Saving..." : "Save key"}
+              </button>
+            ) : llm?.configured ? (
+              <button
+                type="button"
+                disabled={llmSaving}
+                onClick={saveLlm}
+                className="rounded-lg border border-[#112733] px-4 py-2.5 text-sm text-[#889397] hover:bg-white/[0.02] hover:text-[#C5CDD3] disabled:opacity-40 transition-colors"
+              >
+                {llmSaving ? "Clearing..." : "Clear key"}
+              </button>
+            ) : null}
           </div>
           {llmResult && (
             <div
               className={`rounded-lg px-4 py-2.5 text-sm ${
                 llmResult.ok
                   ? "bg-mdb-leaf/10 border border-mdb-leaf/25 text-mdb-leaf"
-                  : "bg-red-500/10 border border-red-500/25 text-red-300"
+                  : "bg-[#FF6960]/10 border border-[#FF6960]/25 text-[#FF6960]"
               }`}
             >
               {llmResult.message}
             </div>
           )}
         </div>
-      </section>
+      </Card>
 
       {/* Demo data reset */}
-      <section className="glass rounded-xl p-6 space-y-4">
+      <Card className="p-6 space-y-4">
         <h2 className="text-sm font-medium text-white">Demo data</h2>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Reset all workflows, findings, runs, and flows to the pre-seeded demo state. 
-          Useful before a harbor tour or presentation.
+        <p className="text-xs text-[#5C6C75] leading-relaxed">
+          Reset all workflows, findings, runs, and flows to the pre-seeded demo state.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             disabled={resetting}
             onClick={resetDemo}
-            className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200 hover:bg-amber-500/20 disabled:opacity-40 transition-colors"
+            className="rounded-lg border border-[#FFC010]/30 bg-[#FFC010]/10 px-4 py-2.5 text-sm text-[#FFC010] hover:bg-[#FFC010]/20 disabled:opacity-40 transition-colors"
           >
-            {resetting ? "Resetting…" : "Reset demo data"}
+            {resetting ? "Resetting..." : "Reset demo data"}
           </button>
           {resetMsg && <span className="text-xs text-mdb-leaf">{resetMsg}</span>}
         </div>
-      </section>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }
