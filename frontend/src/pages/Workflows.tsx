@@ -261,9 +261,9 @@ export function Workflows() {
         actions={
           <Link
             to="/workflows/new"
-            className="rounded-md bg-mdb-leaf text-[#001E2B] px-4 py-2 text-sm font-medium hover:bg-mdb-leaf/90 transition-colors"
+            className="rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] hover:shadow-[0_0_25px_rgba(0,237,100,0.4)] transition-all"
           >
-            + Create
+            + Create workflow
           </Link>
         }
       />
@@ -288,9 +288,9 @@ export function Workflows() {
             <p className="text-[#889397] mb-4">No workflows yet.</p>
             <Link
               to="/workflows/new"
-              className="inline-flex items-center rounded-md bg-mdb-leaf text-[#001E2B] px-4 py-2 text-sm font-medium hover:bg-mdb-leaf/90"
+              className="inline-flex items-center rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] transition-all"
             >
-              + Create
+              + Create workflow
             </Link>
           </Card>
         )}
