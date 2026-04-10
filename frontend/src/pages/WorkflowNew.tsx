@@ -5,7 +5,91 @@ import type { AgentType, ChatMessage, TriggerType, WorkflowCreatePayload, Workfl
 import {
   PipelineTimeline,
   generatePipelineSteps,
+  PIPELINE_TEMPLATES,
+  TOOL_COLORS,
 } from "@/components/PipelineTimeline";
+
+// =============================================================================
+// ICONS - Minimal monochrome SVG icons (matching Workflows.tsx)
+// =============================================================================
+
+function IconDollar() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
+function IconQuery() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function IconBackup() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8" />
+      <rect x="1" y="3" width="22" height="5" />
+    </svg>
+  );
+}
+
+function IconSecurity() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function IconIndex() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+
+function IconData() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  );
+}
+
+function IconScaling() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="20" x2="12" y2="10" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="16" />
+    </svg>
+  );
+}
+
+const AGENT_ICONS: Record<AgentType, React.ReactNode> = {
+  spend: <IconDollar />,
+  slow_query: <IconQuery />,
+  backup: <IconBackup />,
+  security: <IconSecurity />,
+  index_rationalization: <IconIndex />,
+  data_quality: <IconData />,
+  scaling: <IconScaling />,
+};
 
 // =============================================================================
 // CONSTANTS
@@ -16,17 +100,16 @@ type SchedulePreset = "manual" | "6h" | "hourly" | "daily";
 
 const MONITOR_CATEGORIES: {
   id: AgentType;
-  icon: string;
   label: string;
   desc: string;
 }[] = [
-  { id: "spend", icon: "$", label: "Costs & usage", desc: "Spend drift, invoice anomalies" },
-  { id: "slow_query", icon: "Q", label: "App speed", desc: "Slow queries, missing indexes" },
-  { id: "backup", icon: "B", label: "Backups", desc: "Snapshot frequency vs churn" },
-  { id: "security", icon: "S", label: "Security", desc: "Unusual access, export spikes" },
-  { id: "data_quality", icon: "D", label: "Data quality", desc: "Outliers, schema drift" },
-  { id: "index_rationalization", icon: "I", label: "Indexes", desc: "Unused or redundant indexes" },
-  { id: "scaling", icon: "C", label: "Capacity", desc: "CPU, connections, growth trends" },
+  { id: "spend", label: "Costs & usage", desc: "Spend drift, invoice anomalies" },
+  { id: "slow_query", label: "App speed", desc: "Slow queries, missing indexes" },
+  { id: "backup", label: "Backups", desc: "Snapshot frequency vs churn" },
+  { id: "security", label: "Security", desc: "Unusual access, export spikes" },
+  { id: "data_quality", label: "Data quality", desc: "Outliers, schema drift" },
+  { id: "index_rationalization", label: "Indexes", desc: "Unused or redundant indexes" },
+  { id: "scaling", label: "Capacity", desc: "CPU, connections, growth trends" },
 ];
 
 const SCHEDULE_OPTIONS: { id: SchedulePreset; label: string }[] = [
@@ -432,7 +515,6 @@ export function WorkflowNew() {
   const [selectedClusters, setSelectedClusters] = useState<Set<string>>(
     new Set(DEMO_CLUSTERS.filter((c) => c.ok).map((c) => c.id))
   );
-  const [showCustomize, setShowCustomize] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -440,6 +522,72 @@ export function WorkflowNew() {
   const pipelineSteps = useMemo(() => {
     return generatePipelineSteps(Array.from(selectedMonitors));
   }, [selectedMonitors]);
+
+  // Open selected monitors in flow editor with full pipeline
+  function openInFlowEditor() {
+    if (selectedMonitors.size === 0) return;
+
+    const agents = Array.from(selectedMonitors);
+
+    // Build full pipeline steps (same logic as generatePipelineSteps)
+    const allSteps: { id: string; label: string; desc: string; tool: string }[] = [];
+
+    agents.forEach((agent) => {
+      const template = PIPELINE_TEMPLATES[agent];
+      template.forEach((step, i) => {
+        allSteps.push({
+          id: `${agent}-${i}`,
+          label: step.label,
+          desc: step.desc,
+          tool: step.tool,
+        });
+      });
+    });
+
+    // Add synthesis and delivery steps
+    allSteps.push({
+      id: "synthesize",
+      label: "Synthesize findings",
+      desc: "Rank by severity and estimated savings",
+      tool: "mdba",
+    });
+    allSteps.push({
+      id: "deliver",
+      label: "Deliver to inbox",
+      desc: "Publish findings for human review",
+      tool: "notify",
+    });
+
+    // Create nodes for each step
+    const nodes = allSteps.map((step, i) => ({
+      id: `template-${step.id}`,
+      type: "tool",
+      position: { x: 80, y: 40 + i * 140 },
+      data: {
+        tool: step.tool,
+        label: step.label,
+        prompt: step.desc,
+        include_prior_memory: i > 0,
+      },
+    }));
+
+    // Create edges connecting all nodes with tool-colored styling
+    const edges = nodes.slice(1).map((n, i) => {
+      const sourceTool = allSteps[i].tool as keyof typeof TOOL_COLORS;
+      const color = TOOL_COLORS[sourceTool] || "#818cf8";
+      return {
+        id: `template-edge-${i}`,
+        source: nodes[i].id,
+        target: n.id,
+        type: "smoothstep",
+        markerEnd: { type: "arrowclosed", color, width: 18, height: 18 },
+        style: { stroke: color, strokeWidth: 2 },
+      };
+    });
+
+    const flowName = `${agents.slice(0, 2).map(a => MONITOR_CATEGORIES.find(c => c.id === a)?.label ?? a).join(" + ")} workflow`;
+    nav("/advisor/flow", { state: { nodes, edges, flowName } });
+  }
 
   // Mode switcher component
   const ModeToggle = () => (
@@ -529,24 +677,14 @@ export function WorkflowNew() {
 
   // Back button logic
   const handleBack = () => {
-    if (mode === "templates") {
-      if (showCustomize) {
-        setShowCustomize(false);
-      } else if (step > 1) {
-        setStep(step - 1);
-      } else {
-        nav("/workflows");
-      }
+    if (mode === "templates" && step > 1) {
+      setStep(step - 1);
     } else {
       nav("/workflows");
     }
   };
 
-  const backLabel = showCustomize
-    ? "Back to review"
-    : step > 1
-    ? "Back"
-    : "Workflows";
+  const backLabel = step > 1 ? "Back" : "Workflows";
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -575,7 +713,7 @@ export function WorkflowNew() {
       )}
 
       {/* TEMPLATES MODE */}
-      {mode === "templates" && !showCustomize && (
+      {mode === "templates" && (
         <div className="space-y-8">
           {/* Step indicators */}
           <div className="flex items-center gap-2">
@@ -621,7 +759,7 @@ export function WorkflowNew() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">{cat.icon}</span>
+                          <span className={selected ? "text-mdb-leaf" : "text-[#889397]"}>{AGENT_ICONS[cat.id]}</span>
                           <span className="font-semibold text-sm text-white">{cat.label}</span>
                         </div>
                         {selected && (
@@ -745,10 +883,10 @@ export function WorkflowNew() {
                   <h3 className="text-sm font-medium text-white">Pipeline preview</h3>
                   <button
                     type="button"
-                    onClick={() => setShowCustomize(true)}
+                    onClick={openInFlowEditor}
                     className="text-xs text-mdb-leaf hover:underline"
                   >
-                    Customize →
+                    Customize in editor →
                   </button>
                 </div>
                 <PipelineTimeline steps={pipelineSteps} />
@@ -776,10 +914,10 @@ export function WorkflowNew() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCustomize(true)}
+                  onClick={openInFlowEditor}
                   className="rounded-lg border border-[#112733] text-[#C5CDD3] px-5 py-2.5 text-sm hover:bg-white/[0.02]"
                 >
-                  Customize first
+                  Customize in editor
                 </button>
               </div>
 
@@ -787,10 +925,10 @@ export function WorkflowNew() {
                 Or:{" "}
                 <button
                   type="button"
-                  onClick={() => setMode("editor")}
+                  onClick={openInFlowEditor}
                   className="text-slate-400 hover:text-mdb-leaf"
                 >
-                  Visual flow editor
+                  Open in flow editor
                 </button>
                 {" · "}
                 <button
@@ -803,91 +941,6 @@ export function WorkflowNew() {
               </p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* TEMPLATES MODE - CUSTOMIZE VIEW */}
-      {mode === "templates" && showCustomize && (
-        <div className="grid grid-cols-[1fr_180px] gap-6">
-          {/* Main column */}
-          <div className="space-y-4">
-            <div className="glass rounded-xl p-5">
-              <h3 className="text-sm font-medium text-white mb-4">Pipeline steps</h3>
-              <PipelineTimeline
-                steps={pipelineSteps}
-                editable
-                onEdit={(step) => {
-                  // TODO: Open edit modal
-                  console.log("Edit step:", step);
-                }}
-              />
-            </div>
-
-            <button
-              type="button"
-              className="w-full rounded-lg border border-dashed border-[#112733] py-3 text-center text-sm text-[#5C6C75] hover:border-mdb-leaf/30"
-            >
-              + Add step
-            </button>
-
-            <button
-              type="button"
-              disabled={saving}
-              onClick={createWorkflow}
-              className="w-full rounded-lg bg-mdb-leaf text-mdb-forest py-2.5 text-sm font-semibold disabled:opacity-40"
-            >
-              {saving ? "Creating..." : "Save & create workflow"}
-            </button>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-[10px] uppercase tracking-wider text-[#5C6C75] mb-2">Tools</h4>
-              <div className="space-y-1">
-                {[
-                  { label: "MongoDB ops", color: "#00ED64" },
-                  { label: "Atlas API", color: "#3D9CFF" },
-                  { label: "LLM reasoning", color: "#8b5cf6" },
-                  { label: "Notification", color: "#FFC010" },
-                ].map((tool) => (
-                  <div
-                    key={tool.label}
-                    className="rounded-lg border border-[#112733] bg-[rgba(255,255,255,0.02)] p-2 text-xs cursor-grab"
-                  >
-                    <span
-                      className="inline-block w-2 h-2 rounded-full mr-2"
-                      style={{ background: tool.color }}
-                    />
-                    {tool.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-[10px] uppercase tracking-wider text-[#5C6C75] mb-2">Options</h4>
-              <div className="space-y-2 text-xs text-[#889397]">
-                {["Memory passing", "Agent Skills", "HITL for writes"].map((opt) => (
-                  <div key={opt} className="flex items-center gap-2">
-                    <span className="w-[6px] h-[11px] rounded-full bg-mdb-leaf" />
-                    {opt}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border-dashed border border-[#112733] bg-mdb-slate/40 p-3 text-xs text-[#5C6C75] text-center">
-              <p className="mb-2">Need the full canvas?</p>
-              <button
-                type="button"
-                onClick={() => setMode("editor")}
-                className="text-mdb-leaf hover:underline"
-              >
-                Open flow editor →
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

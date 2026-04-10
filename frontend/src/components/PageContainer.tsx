@@ -58,6 +58,8 @@ interface CardProps {
   className?: string;
   onClick?: () => void;
   hoverable?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function Card({
@@ -65,10 +67,14 @@ export function Card({
   className = "",
   onClick,
   hoverable = false,
+  onMouseEnter,
+  onMouseLeave,
 }: CardProps) {
   return (
     <div
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`
         bg-white/[0.02] border-[0.5px] border-[#112733] rounded-xl
         ${hoverable ? "cursor-pointer hover:bg-white/[0.03] transition-colors" : ""}
