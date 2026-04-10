@@ -1,18 +1,157 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/api";
-import type { Workflow } from "@/types";
+import type { Workflow, RunRecord } from "@/types";
+import { TabBar, type Tab } from "@/components/TabBar";
+import { PageContainer, PageHeader, Card } from "@/components/PageContainer";
+
+// =============================================================================
+// ICONS - Minimal monochrome SVG icons
+// =============================================================================
+
+function IconDollar() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
+function IconQuery() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function IconBackup() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8" />
+      <rect x="1" y="3" width="22" height="5" />
+    </svg>
+  );
+}
+
+function IconSecurity() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function IconIndex() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+
+function IconData() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  );
+}
+
+function IconScaling() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="20" x2="12" y2="10" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="16" />
+    </svg>
+  );
+}
+
+function IconWorkflow() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+const AGENT_ICONS: Record<string, React.ReactNode> = {
+  spend: <IconDollar />,
+  slow_query: <IconQuery />,
+  backup: <IconBackup />,
+  security: <IconSecurity />,
+  index_rationalization: <IconIndex />,
+  data_quality: <IconData />,
+  scaling: <IconScaling />,
+};
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function timeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function getScheduleLabel(trigger: string, cron: string | null): string {
+  if (trigger === "manual") return "Manual";
+  if (!cron) return "Scheduled";
+  if (cron.includes("0 * * * *")) return "Hourly";
+  if (cron.includes("0 */6 * * *")) return "Every 6h";
+  if (cron.includes("0 7 * * *")) return "Daily";
+  return "Scheduled";
+}
+
+type TabType = "active" | "past" | "all";
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export function Workflows() {
+  const nav = useNavigate();
   const [items, setItems] = useState<Workflow[]>([]);
+  const [runs, setRuns] = useState<RunRecord[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>("active");
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    api.workflows
-      .list()
-      .then(setItems)
+    Promise.all([
+      api.workflows.list(),
+      api.runs.list(),
+    ])
+      .then(([workflows, runRecords]) => {
+        setItems(workflows);
+        setRuns(runRecords);
+      })
       .catch((e: Error) => setErr(e.message));
   }, []);
 
@@ -20,7 +159,8 @@ export function Workflows() {
     load();
   }, [load]);
 
-  async function runOne(id: string) {
+  async function runOne(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
     setRunning(id);
     setErr(null);
     try {
@@ -33,7 +173,8 @@ export function Workflows() {
     }
   }
 
-  async function deleteOne(wf: Workflow) {
+  async function deleteOne(wf: Workflow, e: React.MouseEvent) {
+    e.stopPropagation();
     if (!confirm(`Delete "${wf.name}" and all its runs and findings?`)) return;
     setDeletingId(wf.id);
     try {
@@ -46,38 +187,87 @@ export function Workflows() {
     }
   }
 
+  // Derive workflow metadata from runs
+  const workflowMeta = useMemo(() => {
+    const meta: Record<string, {
+      lastRun: RunRecord | null;
+      findingsCount: number;
+      status: "ok" | "warning" | "inactive";
+    }> = {};
+
+    items.forEach((w) => {
+      const workflowRuns = runs
+        .filter((r) => r.workflow_id === w.id)
+        .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+
+      const lastRun = workflowRuns[0] || null;
+      const findingsCount = workflowRuns.reduce((sum, r) => {
+        const count = r.trace.filter((t) => t.message.toLowerCase().includes("finding")).length;
+        return sum + count;
+      }, 0);
+
+      let status: "ok" | "warning" | "inactive" = "inactive";
+      if (lastRun) {
+        if (lastRun.status === "completed") {
+          status = "ok";
+        } else if (lastRun.status === "failed") {
+          status = "warning";
+        }
+      }
+
+      meta[w.id] = { lastRun, findingsCount, status };
+    });
+
+    return meta;
+  }, [items, runs]);
+
+  // Filter by tab
+  const filteredItems = useMemo(() => {
+    if (activeTab === "all") return items;
+    if (activeTab === "active") {
+      return items.filter((w) => w.trigger !== "manual" || workflowMeta[w.id]?.lastRun);
+    }
+    return items.filter((w) => {
+      const meta = workflowMeta[w.id];
+      return !meta?.lastRun || w.trigger === "manual";
+    });
+  }, [items, activeTab, workflowMeta]);
+
+  const activeCount = items.filter((w) => w.trigger !== "manual" || workflowMeta[w.id]?.lastRun).length;
+  const pastCount = items.length - activeCount;
+
+  // Tab configuration
+  const tabs: Tab<TabType>[] = [
+    { key: "active", label: "Active", count: activeCount },
+    { key: "past", label: "Past", count: pastCount },
+    { key: "all", label: "All", count: items.length },
+  ];
+
   if (err && items.length === 0) {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
-        {err}
-      </div>
+      <PageContainer>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+          {err}
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6" data-tour="workflows">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Workflows</h1>
-          <p className="text-slate-400 mt-1">
-            Automated monitoring pipelines. Each workflow watches your clusters and reports findings — write operations always require your approval.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/create"
-            className="rounded-xl border border-mdb-leaf/30 text-slate-200 px-4 py-2.5 text-sm font-medium hover:bg-mdb-leaf/10"
-          >
-            New workflow
-          </Link>
+    <PageContainer className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        title="Workflows"
+        actions={
           <Link
             to="/workflows/new"
-            className="rounded-xl border border-mdb-leaf/20 text-slate-400 px-4 py-2.5 text-sm hover:text-slate-200 hover:border-mdb-leaf/35"
+            data-tour="create-btn"
+            className="rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] hover:shadow-[0_0_25px_rgba(0,237,100,0.4)] transition-all"
           >
-            Quick list
+            + Create workflow
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       {err && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
@@ -85,58 +275,123 @@ export function Workflows() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {items.map((w) => (
-          <div
-            key={w.id}
-            className="glass rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between"
-          >
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-medium text-white">{w.name}</h2>
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-mdb-leaf/15 text-mdb-leaf border border-mdb-leaf/25">
-                  {w.trigger}
-                </span>
-                {w.hitl_writes && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-mdb-leaf/40 text-mdb-leaf">
-                    Human approval
-                  </span>
-                )}
+      {/* Tabs */}
+      <TabBar
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+
+      {/* Workflow cards */}
+      <div className="space-y-2" data-tour="workflows">
+        {filteredItems.length === 0 && (
+          <Card className="p-8 text-center">
+            <p className="text-[#889397] mb-4">No workflows yet.</p>
+            <Link
+              to="/workflows/new"
+              className="inline-flex items-center rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] transition-all"
+            >
+              + Create workflow
+            </Link>
+          </Card>
+        )}
+
+        {filteredItems.map((w) => {
+          const meta = workflowMeta[w.id];
+          const firstAgent = w.steps[0]?.agent;
+          const icon = firstAgent ? AGENT_ICONS[firstAgent] || <IconWorkflow /> : <IconWorkflow />;
+          const isActive = w.trigger !== "manual" || !!meta?.lastRun;
+          const isHovered = hoveredId === w.id;
+
+          return (
+            <Card
+              key={w.id}
+              onClick={() => nav(`/workflows/${w.id}`)}
+              hoverable
+              className="p-4 flex items-center gap-4"
+              onMouseEnter={() => setHoveredId(w.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              {/* Icon */}
+              <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 ${
+                isActive ? "bg-[#112733] text-[#889397]" : "bg-[#0A1A1F] text-[#5C6C75]"
+              }`}>
+                {icon}
               </div>
-              <p className="text-sm text-slate-400 mt-1">{w.description || "—"}</p>
-              <p className="text-xs text-slate-500 mt-2 font-mono">
-                {w.steps.length} step{w.steps.length === 1 ? "" : "s"}:{" "}
-                {w.steps.map((s) => s.agent).join(" → ")}
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                disabled={running === w.id}
-                onClick={() => runOne(w.id)}
-                className="rounded-lg bg-mdb-leaf/20 border border-mdb-leaf/35 px-4 py-2 text-sm text-mdb-leaf hover:bg-mdb-leaf/30 disabled:opacity-50"
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  {/* Status dot - subtle */}
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      meta?.status === "ok"
+                        ? "bg-mdb-leaf"
+                        : meta?.status === "warning"
+                          ? "bg-[#FFC010]"
+                          : "bg-[#3D4F58]"
+                    }`}
+                  />
+                  <h2 className="font-medium text-white truncate">{w.name}</h2>
+                </div>
+                <div className="text-[13px] text-[#5C6C75] mt-0.5 flex items-center gap-1.5">
+                  <span>{getScheduleLabel(w.trigger, w.schedule_cron)}</span>
+                  {meta?.lastRun && (
+                    <>
+                      <span className="text-[#3D4F58]">·</span>
+                      <span>{timeAgo(meta.lastRun.started_at)}</span>
+                    </>
+                  )}
+                  {meta && meta.findingsCount > 0 && (
+                    <>
+                      <span className="text-[#3D4F58]">·</span>
+                      <span>{meta.findingsCount} finding{meta.findingsCount !== 1 ? "s" : ""}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions - show on hover */}
+              <div
+                className={`flex gap-1.5 shrink-0 transition-opacity ${isHovered ? "opacity-100" : "opacity-0"}`}
+                onClick={(e) => e.stopPropagation()}
               >
-                {running === w.id ? "Running…" : "Run now"}
-              </button>
-              <Link
-                to={`/workflows/${w.id}`}
-                className="rounded-lg border border-mdb-leaf/25 px-4 py-2 text-sm text-slate-200 hover:bg-mdb-leaf/10 inline-flex items-center"
-              >
-                View
-              </Link>
-              <button
-                type="button"
-                disabled={deletingId === w.id}
-                onClick={() => deleteOne(w)}
-                className="rounded-lg border border-red-500/20 px-3 py-2 text-sm text-red-400/70 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 transition-colors"
-                title="Delete workflow"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
+                {isActive && (
+                  <button
+                    type="button"
+                    disabled={running === w.id}
+                    onClick={(e) => runOne(w.id, e)}
+                    className="rounded-md border border-[#1C2D38] px-3 py-1.5 text-xs text-[#C5CDD3] hover:bg-[#112733] hover:border-[#2A3F4D] disabled:opacity-50 transition-colors"
+                  >
+                    {running === w.id ? "Running..." : "Run"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={deletingId === w.id}
+                  onClick={(e) => deleteOne(w, e)}
+                  className="rounded-md border border-[#1C2D38] px-2 py-1.5 text-xs text-[#5C6C75] hover:bg-[#112733] hover:text-[#889397] disabled:opacity-50 transition-colors"
+                  title="Delete workflow"
+                >
+                  {deletingId === w.id ? "..." : "✕"}
+                </button>
+              </div>
+            </Card>
+          );
+        })}
       </div>
-    </div>
+
+      {/* Minimal footer - just a link */}
+      {items.length > 0 && (
+        <div className="flex justify-end pt-2">
+          <Link
+            to="/runs"
+            className="text-xs text-[#5C6C75] hover:text-[#889397] transition-colors"
+          >
+            View run history →
+          </Link>
+        </div>
+      )}
+    </PageContainer>
   );
 }

@@ -36,12 +36,9 @@ const sections: NavSection[] = [
     heading: "MDBA — Atlas Advisor",
     active: true,
     items: [
-      { to: "/", label: "Overview", end: true },
+      { to: "/", label: "Dashboard", end: true },
       { to: "/findings", label: "Findings" },
       { to: "/workflows", label: "Workflows" },
-      { to: "/create", label: "Create" },
-      { to: "/advisor", label: "Advisor" },
-      { to: "/runs", label: "History" },
       { to: "/settings", label: "Settings" },
     ],
   },
@@ -77,10 +74,10 @@ export function Layout() {
   const tour = useTour();
 
   return (
-    <div className="min-h-screen flex bg-mdb-slate">
-      <aside className="w-60 shrink-0 border-r border-white/[0.08] bg-[#0a1e18] flex flex-col overflow-y-auto">
-        {/* Atlas-style header */}
-        <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
+    <div className={`flex bg-mdb-slate ${toolsWorkshop ? "h-screen" : "min-h-screen"}`}>
+      <aside className="w-60 shrink-0 border-r border-white/[0.08] bg-[#0a1e18] flex flex-col h-screen sticky top-0">
+        {/* Atlas-style header - fixed */}
+        <div className="px-4 pt-4 pb-3 border-b border-white/[0.06] shrink-0">
           <div className="flex items-center gap-2">
             <MongoLeafIcon />
             <span className="text-white font-semibold text-sm">MongoDB Atlas</span>
@@ -91,8 +88,8 @@ export function Layout() {
           </div>
         </div>
 
-        {/* Navigation sections */}
-        <nav className="flex-1 px-2 py-3 space-y-4">
+        {/* Navigation sections - scrollable */}
+        <nav className="flex-1 px-2 py-3 space-y-4 overflow-y-auto">
           {sections.map((section) => (
             <div key={section.heading}>
               <div
@@ -136,8 +133,8 @@ export function Layout() {
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="px-3 py-3 border-t border-white/[0.06] space-y-2">
+        {/* Footer - fixed at bottom */}
+        <div className="px-3 py-3 border-t border-white/[0.06] shrink-0">
           <button
             type="button"
             onClick={tour.start}
@@ -145,9 +142,6 @@ export function Layout() {
           >
             ▶ Guided tour
           </button>
-          <div className="text-[10px] text-slate-600 leading-relaxed text-center">
-            Human approval for writes
-          </div>
         </div>
       </aside>
 
