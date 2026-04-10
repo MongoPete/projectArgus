@@ -1,9 +1,6 @@
 import { useCallback, useState, useMemo } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { AgentBuilder } from "@/pages/AgentBuilder";
-import { AskLayout } from "@/layouts/AskLayout";
-import { Assistant } from "@/pages/Assistant";
 import { FlowBuilder } from "@/pages/FlowBuilder";
 import { Dashboard } from "@/pages/Dashboard";
 import { Findings } from "@/pages/Findings";
@@ -41,18 +38,17 @@ export default function App() {
           <Route path="workflows" element={<Workflows />} />
           <Route path="workflows/new" element={<WorkflowNew />} />
           <Route path="workflows/:id" element={<WorkflowDetail />} />
-          <Route path="create" element={<AgentBuilder />} />
-          <Route path="advisor" element={<AskLayout />}>
-            <Route index element={<Assistant />} />
-            <Route path="flow" element={<FlowBuilder />} />
-          </Route>
+          <Route path="advisor/flow" element={<FlowBuilder />} />
           <Route path="runs" element={<Runs />} />
           <Route path="settings" element={<Settings />} />
-          {/* Legacy redirects */}
-          <Route path="dashboard" element={<Navigate to="/" replace />} />
-          <Route path="builder" element={<Navigate to="/create" replace />} />
-          <Route path="assistant" element={<Navigate to="/advisor" replace />} />
+
+          {/* Redirects - unified workflow creation */}
+          <Route path="create" element={<Navigate to="/workflows/new" replace />} />
+          <Route path="builder" element={<Navigate to="/workflows/new" replace />} />
+          <Route path="advisor" element={<Navigate to="/workflows/new?mode=chat" replace />} />
+          <Route path="assistant" element={<Navigate to="/workflows/new?mode=chat" replace />} />
           <Route path="assistant/flow" element={<Navigate to="/advisor/flow" replace />} />
+          <Route path="dashboard" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
       {tourActive && <TourOverlay onClose={() => setTourActive(false)} />}

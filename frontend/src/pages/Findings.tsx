@@ -1581,7 +1581,7 @@ export function Findings() {
     );
   }
 
-  const clusterCount = new Set(items.map(extractClusterFromFinding)).size;
+  // const clusterCount = new Set(items.map(extractClusterFromFinding)).size;
 
   return (
     <>

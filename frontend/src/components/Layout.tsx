@@ -36,12 +36,9 @@ const sections: NavSection[] = [
     heading: "MDBA — Atlas Advisor",
     active: true,
     items: [
-      { to: "/", label: "Overview", end: true },
+      { to: "/", label: "Dashboard", end: true },
       { to: "/findings", label: "Findings" },
       { to: "/workflows", label: "Workflows" },
-      { to: "/create", label: "Create" },
-      { to: "/advisor", label: "Advisor" },
-      { to: "/runs", label: "History" },
       { to: "/settings", label: "Settings" },
     ],
   },
@@ -67,6 +64,14 @@ function MongoLeafIcon() {
         fill="#023430"
         opacity="0.6"
       />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
   );
 }
@@ -105,6 +110,13 @@ export function Layout() {
                 {section.active && <span className="mr-1">●</span>}
                 {section.heading}
               </div>
+              {/* Write protection indicator for active section */}
+              {section.active && (
+                <div className="px-3 py-1 flex items-center gap-1 text-[10px] text-[#5C6C75]">
+                  <ShieldIcon />
+                  <span>Write protection on</span>
+                </div>
+              )}
               <div className="mt-0.5 flex flex-col">
                 {section.items.map((item) =>
                   item.external ? (
@@ -145,9 +157,6 @@ export function Layout() {
           >
             ▶ Guided tour
           </button>
-          <div className="text-[10px] text-slate-600 leading-relaxed text-center">
-            Human approval for writes
-          </div>
         </div>
       </aside>
 
