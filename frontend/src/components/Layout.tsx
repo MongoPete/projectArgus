@@ -82,7 +82,7 @@ export function Layout() {
   const tour = useTour();
 
   return (
-    <div className="min-h-screen flex bg-mdb-slate">
+    <div className={`flex bg-mdb-slate ${toolsWorkshop ? "h-screen" : "min-h-screen"}`}>
       <aside className="w-60 shrink-0 border-r border-white/[0.08] bg-[#0a1e18] flex flex-col overflow-y-auto">
         {/* Atlas-style header */}
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">

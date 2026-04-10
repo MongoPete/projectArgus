@@ -560,7 +560,7 @@ export function FlowBuilder() {
   }, [flowName, nodes, edges, savedId]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-[#001E2B] text-slate-200">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-[#001E2B] text-slate-200">
       {/* Top bar */}
       <header className="flex items-center justify-between h-12 shrink-0 px-4 border-b border-[#112733] bg-[#0B2330]">
         {/* Left section */}
@@ -777,7 +777,7 @@ export function FlowBuilder() {
         {/* Terminal */}
         <aside
           data-tour="flow-terminal"
-          className="shrink-0 flex flex-col border-l border-[#112733] bg-[#001E2B] min-h-0"
+          className="shrink-0 flex flex-col border-l border-[#112733] bg-[#001E2B] min-h-0 overflow-hidden"
           style={{ width: termW }}
         >
           <div className="flex items-center justify-between px-3 py-2 bg-[#0B2330] border-b border-[#112733] shrink-0">
@@ -791,7 +791,11 @@ export function FlowBuilder() {
           </div>
           <div
             ref={termScrollRef}
-            className="flex-1 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed text-slate-400 space-y-1 min-h-0"
+            className="flex-1 overflow-y-auto p-3 font-mono text-[11px] leading-relaxed text-slate-400 space-y-1 min-h-0 scrollbar-dark"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: "#112733 #001E2B",
+            }}
           >
             <div>
               <span className="text-mdb-leaf font-semibold">MDBA Flow Runner</span>{" "}

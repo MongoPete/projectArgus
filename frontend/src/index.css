@@ -18,4 +18,18 @@ body {
   .glass {
     @apply bg-mdb-forest/35 backdrop-blur-sm border border-mdb-leaf/20 shadow-[0_0_0_1px_rgba(0,237,100,0.08)];
   }
+
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: #001E2B;
+  }
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: #112733;
+    border-radius: 4px;
+  }
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background: #1a3a4a;
+  }
 }
