@@ -43,6 +43,18 @@ const MOCK_ACTIVITY = [
 // HELPER FUNCTIONS
 // =============================================================================
 
+function getTimeOfDayGreeting(): string {
+  // Get current time in EST
+  const now = new Date();
+  const estTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const hour = estTime.getHours();
+
+  if (hour >= 5 && hour < 12) return "this morning";
+  if (hour >= 12 && hour < 17) return "this afternoon";
+  if (hour >= 17 && hour < 21) return "this evening";
+  return "tonight";
+}
+
 function getClusterHealth(clusters: ClusterInfo[]) {
   const critical = clusters.filter((c) => c.status === "critical").length;
   const warning = clusters.filter((c) => c.status === "warning").length;
@@ -1028,10 +1040,10 @@ export function Dashboard() {
       {/* ACTION STRIP */}
       <div className="flex justify-end gap-2.5 mb-6">
         <Link
-          to="/create"
-          className="bg-mdb-leaf text-[#001E2B] px-4 py-2.5 rounded-md font-medium text-[15px]"
+          to="/workflows/new"
+          className="rounded-lg bg-mdb-leaf text-[#001E2B] px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90 shadow-[0_0_20px_rgba(0,237,100,0.3)] hover:shadow-[0_0_25px_rgba(0,237,100,0.4)] transition-all"
         >
-          + New workflow
+          + Create workflow
         </Link>
       </div>
 
@@ -1040,18 +1052,14 @@ export function Dashboard() {
         <NetworkGraphSVG />
 
         <div className="max-w-[460px] relative">
-          <div className="text-xs text-mdb-leaf tracking-wider uppercase font-medium">
-            YOUR ESTATE
-          </div>
-
-          <h1 className="text-4xl text-white font-medium leading-tight tracking-tight mt-3">
+          <h1 className="text-4xl text-white font-medium leading-tight tracking-tight">
             {hasCriticals ? (
               <>
-                Looking <span className="text-mdb-leaf">mostly healthy</span> this morning
+                Looking <span className="text-mdb-leaf">mostly healthy</span> {getTimeOfDayGreeting()}
               </>
             ) : (
               <>
-                Looking <span className="text-mdb-leaf">healthy</span> this morning
+                Looking <span className="text-mdb-leaf">healthy</span> {getTimeOfDayGreeting()}
               </>
             )}
           </h1>
