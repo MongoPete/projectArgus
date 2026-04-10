@@ -160,8 +160,13 @@ function AnomalyChart({ finding }: { finding: Finding }) {
     : "2:47 AM";
 
   return (
-    <div className="mt-10">
-      <svg viewBox="0 0 900 140" className="w-full h-[140px]">
+    <div className="mt-10 w-full">
+      <svg
+        viewBox="0 0 900 160"
+        className="w-full h-auto"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ minHeight: "160px", maxHeight: "200px" }}
+      >
         {/* Gridlines */}
         <line x1="0" y1="35" x2="900" y2="35" stroke="#0E2230" strokeWidth="0.5" />
         <line x1="0" y1="70" x2="900" y2="70" stroke="#0E2230" strokeWidth="0.5" />
@@ -208,11 +213,11 @@ function AnomalyChart({ finding }: { finding: Finding }) {
         <text x="660" y="132" fill="#5C6C75" fontSize="10">18:00</text>
         <text x="860" y="132" fill="#5C6C75" fontSize="10">now</text>
 
-        {/* Legend */}
-        <line x1="720" y1="10" x2="745" y2="10" stroke="#3D9CFF" strokeWidth="2" />
-        <text x="752" y="14" fill="#5C6C75" fontSize="10">baseline</text>
-        <line x1="810" y1="10" x2="835" y2="10" stroke="#FF6960" strokeWidth="2" />
-        <text x="842" y="14" fill="#5C6C75" fontSize="10">anomaly</text>
+        {/* Legend - positioned below x-axis */}
+        <line x1="720" y1="152" x2="745" y2="152" stroke="#3D9CFF" strokeWidth="2" />
+        <text x="752" y="155" fill="#5C6C75" fontSize="10">baseline</text>
+        <line x1="810" y1="152" x2="835" y2="152" stroke="#FF6960" strokeWidth="2" />
+        <text x="842" y="155" fill="#5C6C75" fontSize="10">anomaly</text>
       </svg>
     </div>
   );
