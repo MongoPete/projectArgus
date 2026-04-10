@@ -156,7 +156,7 @@ def demo_runs() -> list[dict]:
             "trace": [
                 TraceStep(node="ingest", message="Fetched Atlas audit logs and transaction collection stats.", at=_3H).model_dump(),
                 TraceStep(node="analyze", message="Detected unusual read pattern from new IP range on payments cluster.", at=_3H + timedelta(seconds=5)).model_dump(),
-                TraceStep(node="analyze", message="Produced 2 findings — 1 high (security), 1 medium (data quality).", at=_3H + timedelta(seconds=8)).model_dump(),
+                TraceStep(node="analyze", message="Produced 1 finding — high severity (security).", at=_3H + timedelta(seconds=8)).model_dump(),
                 TraceStep(node="synthesize", message="Security finding flagged for immediate review.", at=_3H + timedelta(seconds=9)).model_dump(),
                 TraceStep(node="deliver", message="Published to inbox. Security alert sent to #atlas-security Slack channel.", at=_3H + timedelta(seconds=11)).model_dump(),
             ],
@@ -228,49 +228,6 @@ def demo_findings() -> list[dict]:
                 R(role="agent", content="user_events accounts for 41% of the transfer increase. It's a 248GB collection with high outbound read traffic. audit_logs is 31% (187GB), session_data is 17% (92GB). Together they explain 89% of the spike."),
                 R(role="agent", content="Cross-referencing with Atlas deployment history: a new analytics pipeline was deployed on Apr 2. This pipeline runs cross-region reads from us-east-1 to eu-west-1 against these three collections."),
                 R(role="conclusion", content="Savings estimate: $900/mo by routing reads to a local replica, $340/mo with TTL on audit_logs, $280/mo by archiving old sessions. Total addressable: $1,520/mo."),
-            ],
-            created_at=_1H,
-        ).model_dump(),
-
-        Finding(
-            id="fd-slow-orders",
-            run_id="run-001",
-            workflow_id="wf-cost-query",
-            agent=AgentType.slow_query,
-            title="COLLSCAN on orders collection \u2014 2.4M documents scanned per query",
-            summary=(
-                "The query pattern `db.orders.find({status: 'pending', created_at: {$gte: ...}})` "
-                "is doing a full collection scan across 2.4M documents. P95 latency is 842ms. "
-                "This runs ~1,200 times/hour from the order-fulfillment service."
-            ),
-            severity=FindingSeverity.high,
-            status=FindingStatus.new,
-            estimated_monthly_savings_usd=480.0,
-            evidence={
-                "cluster": "prod-east-1",
-                "collection": "orders",
-                "document_count": 2_400_000,
-                "query_pattern": "find({status, created_at.$gte})",
-                "scan_type": "COLLSCAN",
-                "p95_ms": 842,
-                "calls_per_hour": 1200,
-                "explain_summary": "No suitable index; winningPlan: COLLSCAN",
-            },
-            recommendations=[
-                "Create compound index: db.orders.createIndex({status: 1, created_at: -1}) \u2014 estimated 340x read improvement.",
-                "After indexing, re-profile to confirm p95 drops below 5ms.",
-            ],
-            reasoning_trace=[
-                R(role="agent", content="Scanning system.profile on prod-east-1 for queries exceeding 100ms in the last 24 hours."),
-                R(role="tool", content="db.system.profile.find({millis: {$gt: 100}}).sort({ts: -1}).limit(50)"),
-                R(role="data", content='{"n": 14, "sample": [{"op": "query", "ns": "app.orders", "millis": 842, "planSummary": "COLLSCAN", "docsExamined": 2400000, "nreturned": 47}]}'),
-                R(role="agent", content="Found a recurring pattern: db.orders.find({status: 'pending', created_at: {$gte: ...}}). This shows up 14 times in the profiler with COLLSCAN. Let me run explain to confirm."),
-                R(role="tool", content="db.orders.find({status: 'pending', created_at: {$gte: ISODate('2026-04-01')}}).explain('executionStats')"),
-                R(role="data", content='{"winningPlan": {"stage": "COLLSCAN"}, "executionStats": {"totalDocsExamined": 2400000, "totalKeysExamined": 0, "executionTimeMillis": 842, "nReturned": 47}}'),
-                R(role="agent", content="Confirmed: full collection scan. 2.4M documents examined to return 47 results. The query filters on status + created_at, so a compound index {status: 1, created_at: -1} would be optimal."),
-                R(role="agent", content="Checking call frequency from Atlas logs: this pattern runs ~1,200 times/hour from the order-fulfillment microservice (user: svc-orders)."),
-                R(role="agent", content="Cost impact: at 842ms per query, 1,200 calls/hour, the cluster is spending significant IOPS on this scan. After indexing, expect p95 < 5ms. The IOPS reduction lowers autoscaling pressure."),
-                R(role="conclusion", content="Estimated savings: $480/mo from reduced compute/IOPS. The index itself adds ~200MB of storage (negligible). ROI: immediate after index creation."),
             ],
             created_at=_1H,
         ).model_dump(),
@@ -366,7 +323,7 @@ def demo_findings() -> list[dict]:
                 "collections that are no longer actively queried."
             ),
             severity=FindingSeverity.medium,
-            status=FindingStatus.acknowledged,
+            status=FindingStatus.new,
             estimated_monthly_savings_usd=630.0,
             evidence={
                 "unused_index_count": 23,
@@ -439,48 +396,4 @@ def demo_findings() -> list[dict]:
             created_at=_3H,
         ).model_dump(),
 
-        Finding(
-            id="fd-data-quality-txn",
-            run_id="run-003",
-            workflow_id="wf-security-quality",
-            agent=AgentType.data_quality,
-            title="Transaction amount outliers \u2014 47 records exceed 3\u03c3 threshold",
-            summary=(
-                "47 documents inserted in the last 24 hours have transaction_amount values "
-                "exceeding 3 standard deviations from the 30-day mean ($312). "
-                "Largest outlier: $94,200 (order_id: ord_8f2a9c). Could indicate a pricing "
-                "bug in the enterprise checkout flow or legitimate large orders."
-            ),
-            severity=FindingSeverity.medium,
-            status=FindingStatus.new,
-            estimated_monthly_savings_usd=None,
-            evidence={
-                "collection": "transactions",
-                "outlier_count": 47,
-                "mean_30d": 312,
-                "std_dev_30d": 890,
-                "max_outlier_amount": 94200,
-                "max_outlier_doc": "ord_8f2a9c",
-                "detection_method": "z-score > 3",
-            },
-            recommendations=[
-                "Review the 47 flagged transactions \u2014 cross-reference with the enterprise checkout deploy from Apr 5.",
-                "Add application-level validation for transaction_amount > $10,000.",
-                "Consider a MongoDB schema validation rule: { transaction_amount: { $lte: 50000 } }.",
-            ],
-            reasoning_trace=[
-                R(role="agent", content="Running statistical outlier detection on the transactions collection. Computing 30-day rolling statistics for transaction_amount."),
-                R(role="tool", content='db.transactions.aggregate([{$match: {created_at: {$gte: ISODate("2026-03-08")}}}, {$group: {_id: null, mean: {$avg: "$amount"}, stddev: {$stdDevPop: "$amount"}, count: {$sum: 1}}}])'),
-                R(role="data", content='{"mean": 312.47, "stddev": 890.21, "count": 284000}'),
-                R(role="agent", content="30-day baseline: mean = $312.47, std dev = $890.21. Setting z-score threshold at 3 (amount > $312 + 3 \u00d7 $890 = $2,982)."),
-                R(role="tool", content='db.transactions.find({amount: {$gt: 2982}, created_at: {$gte: ISODate("2026-04-07")}}).count()'),
-                R(role="data", content='{"count": 47}'),
-                R(role="agent", content="47 transactions in the last 24 hours exceed the 3\u03c3 threshold. Let me examine the distribution of these outliers."),
-                R(role="tool", content='db.transactions.find({amount: {$gt: 2982}}).sort({amount: -1}).limit(5)'),
-                R(role="data", content='[{"order_id": "ord_8f2a9c", "amount": 94200, "user_type": "enterprise"}, {"order_id": "ord_7e1b4d", "amount": 67800, "user_type": "enterprise"}, {"order_id": "ord_3c9f2a", "amount": 45100, "user_type": "enterprise"}]'),
-                R(role="agent", content="All top outliers are from enterprise accounts. Cross-referencing with deployment history: an enterprise checkout update was deployed on Apr 5. This could be a pricing bug or legitimate large-volume enterprise orders."),
-                R(role="conclusion", content="47 statistical outliers detected. All from enterprise accounts following an Apr 5 deployment. No direct cost savings \u2014 this is a data quality / business logic finding. Recommend manual review and application-level validation."),
-            ],
-            created_at=_3H,
-        ).model_dump(),
     ]

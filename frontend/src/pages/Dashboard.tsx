@@ -39,7 +39,7 @@ const MOCK_WORKFLOWS = [
     scope: "12 clusters",
     lastRunAt: "4m ago",
     nextRunIn: "in 5h 56m",
-    findingsCount: 3,
+    findingsCount: 2,
     findingsSeverity: "med" as const,
   },
   {
@@ -63,7 +63,7 @@ const MOCK_WORKFLOWS = [
     scope: "all clusters",
     lastRunAt: "1h ago",
     nextRunIn: "in 23h",
-    findingsCount: 3,
+    findingsCount: 2,
     findingsSeverity: "med" as const,
   },
 ];
@@ -90,7 +90,7 @@ const MOCK_HISTORY: HistoryGroup[] = [
   {
     day: "Today",
     items: [
-      { time: "9:14 AM", type: "scan", pill: "green", title: "Cost & query health workflow ran across 12 clusters", meta: "3 new findings · spend, query, index", metaHighlight: "amber", context: "2.4s" },
+      { time: "9:14 AM", type: "scan", pill: "green", title: "Cost & query health workflow ran across 12 clusters", meta: "2 new findings · spend, query", metaHighlight: "amber", context: "2.4s" },
       { time: "9:10 AM", type: "finding", pill: "med", title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication", context: "$1,520" },
       { time: "2:47 AM", type: "critical", pill: "crit", title: "Unusual IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", context: "unresolved" },
     ],
@@ -99,7 +99,7 @@ const MOCK_HISTORY: HistoryGroup[] = [
     day: "Yesterday",
     items: [
       { time: "4:12 PM", type: "resolved", pill: "green", title: "3 unused indexes dropped on analytics-warehouse", meta: "approved by Sarah · cleanup workflow", context: "$340/mo" },
-      { time: "9:00 AM", type: "scan", pill: "green", title: "Backup & index audit completed", meta: "3 findings · all clusters scanned", metaHighlight: "amber", context: "4.1s" },
+      { time: "9:00 AM", type: "scan", pill: "green", title: "Backup & index audit completed", meta: "2 findings · all clusters scanned", metaHighlight: "amber", context: "4.1s" },
     ],
   },
   {
@@ -112,12 +112,12 @@ const MOCK_HISTORY: HistoryGroup[] = [
 
 // TODO: replace with API call
 const MOCK_ACTIVITY = [
-  { when: "just now", isLive: true, pill: "scan" as const, title: "Cost & query health is scanning · 8 of 12 clusters", meta: "started 12s ago · 3 findings so far · ~3s remaining", impact: "live" },
+  { when: "just now", isLive: true, pill: "scan" as const, title: "Cost & query health is scanning · 8 of 12 clusters", meta: "started 12s ago · 2 findings so far · ~3s remaining", impact: "live" },
   { when: "2h ago", isLive: false, pill: "med" as const, title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication anomaly", impact: "$1,520/mo" },
   { when: "5h ago", isLive: false, pill: "med" as const, title: "Backup audit found over-snapshotting on 8 clusters", meta: "backup · low-churn collections", impact: "$1,240/mo" },
   { when: "14h ago", isLive: false, pill: "crit" as const, title: "A new IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", impact: "review", whenColor: "#FF6960" },
   { when: "yesterday", isLive: false, pill: "green" as const, title: "Sarah approved index cleanup on analytics-warehouse", meta: "3 indexes dropped · saving going forward", impact: "$340/mo" },
-  { when: "yesterday", isLive: false, pill: "blue" as const, title: "Backup & index audit completed", meta: "all clusters · 3 findings", impact: "4.1s" },
+  { when: "yesterday", isLive: false, pill: "blue" as const, title: "Backup & index audit completed", meta: "all clusters · 2 findings", impact: "4.1s" },
 ];
 
 // =============================================================================
@@ -858,7 +858,7 @@ function FilterDropdown({ label, value, options, onChange }: { label: string; va
           background: "transparent",
         }}
       >
-        {label} <span style={{ color: value === "all" ? "#5C6C75" : "#00ED64" }}>{value}</span> <span style={{ color: "#5C6C75" }}>v</span>
+        {label} <span style={{ color: "#C5CDD3" }}>{value}</span> <span style={{ color: "#5C6C75" }}>v</span>
       </button>
       {isOpen && (
         <>
@@ -1194,7 +1194,7 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
         <span style={{ color: "#5C6C75" }}>
           Showing <span style={{ color: "#C5CDD3" }}>{filteredWorkflows.length}</span> of <span style={{ color: "#C5CDD3" }}>{MOCK_WORKFLOWS.length}</span> · monitoring{" "}
           <span style={{ color: "#C5CDD3" }}>12</span> clusters ·{" "}
-          <span style={{ color: "#00ED64" }}>7 findings this week</span>
+          <span style={{ color: "#00ED64" }}>5 findings this week</span>
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link to="/workflows" style={{ color: "#00ED64", textDecoration: "none" }}>Browse library</Link>

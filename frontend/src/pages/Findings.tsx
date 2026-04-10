@@ -419,25 +419,25 @@ function CuratedInsights({ finding }: { finding: Finding }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const category = getCategoryType(finding.agent);
 
-  // Filter reasoning trace to only agent/conclusion roles, or use defaults
+  // Get 3 key insights only - conclusion plus 2 key analysis steps
   const insights = useMemo(() => {
     if (finding.reasoning_trace && finding.reasoning_trace.length > 0) {
-      const filtered = finding.reasoning_trace.filter(
-        (step) => step.role === "agent" || step.role === "conclusion"
-      );
-      // Take at most 5 curated steps
-      const curated = filtered.slice(0, 5);
-      if (curated.length > 0) {
-        return curated.map((step) => ({
-          title: step.content.split(".")[0]?.substring(0, 40) || "Analysis step",
-          detail: step.content,
-        }));
+      const conclusion = finding.reasoning_trace.find((s) => s.role === "conclusion");
+      const agentSteps = finding.reasoning_trace.filter((s) => s.role === "agent");
+      // Take first agent step, one from middle, and conclusion
+      const selected = [
+        agentSteps[0],
+        agentSteps[Math.floor(agentSteps.length / 2)],
+        conclusion,
+      ].filter(Boolean);
+      if (selected.length > 0) {
+        return selected.map((step) => step!.content);
       }
     }
-    return generateDefaultInsights(category);
+    return generateDefaultInsights(category).map((i) => i.detail);
   }, [finding.reasoning_trace, category]);
 
-  const totalSteps = finding.reasoning_trace?.length ?? insights.length;
+  const totalSteps = finding.reasoning_trace?.length ?? 0;
 
   const handleDownload = () => {
     const data = {
@@ -458,72 +458,97 @@ function CuratedInsights({ finding }: { finding: Finding }) {
 
   return (
     <div style={{ marginTop: 32 }}>
-      {/* Collapsed header - always visible */}
+      {/* Collapsed header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 12,
           width: "100%",
-          padding: "14px 16px",
-          background: "rgba(255,255,255,0.02)",
-          border: "0.5px solid #1C2D38",
+          padding: "12px 14px",
+          background: isExpanded ? "rgba(61,156,255,0.04)" : "transparent",
+          border: isExpanded ? "0.5px solid rgba(61,156,255,0.2)" : "0.5px solid #1C2D38",
           borderRadius: 8,
           cursor: "pointer",
           textAlign: "left",
+          transition: "all 0.15s",
         }}
       >
-        <span style={{ fontSize: 13, color: "#889397" }}>
-          {totalSteps} analysis steps
-          {!isExpanded && " - expand to see reasoning"}
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 6,
+            background: "rgba(61,156,255,0.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#3D9CFF",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4M12 8h.01" />
+          </svg>
+        </div>
+        <span style={{ flex: 1, fontSize: 13, color: isExpanded ? "#C5CDD3" : "#889397" }}>
+          {isExpanded ? "Analysis trace" : "Analysis steps - click to see how MDBA reached this conclusion"}
         </span>
         <ChevronDown open={isExpanded} />
       </button>
 
-      {/* Expanded content */}
+      {/* Expanded - timeline view */}
       {isExpanded && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {insights.map((insight, i) => (
+        <div style={{ marginTop: 16, marginLeft: 14, paddingLeft: 20, borderLeft: "2px solid rgba(61,156,255,0.2)" }}>
+          {insights.slice(0, 3).map((content, i) => (
+            <div
+              key={i}
+              style={{
+                position: "relative",
+                paddingBottom: i < insights.length - 1 ? 20 : 0,
+              }}
+            >
+              {/* Timeline dot */}
               <div
-                key={i}
                 style={{
-                  background: "rgba(255,255,255,0.02)",
-                  border: "0.5px solid #1C2D38",
-                  borderRadius: 8,
-                  padding: "14px 16px",
+                  position: "absolute",
+                  left: -26,
+                  top: 4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: i === insights.length - 1 ? "#00ED64" : "#3D9CFF",
+                  border: "2px solid #001E2B",
                 }}
-              >
-                <div style={{ fontSize: 13, color: "#FFFFFF", fontWeight: 500, marginBottom: 4 }}>
-                  {insight.title}
-                </div>
-                <div style={{ fontSize: 13, color: "#889397", lineHeight: 1.5 }}>
-                  {insight.detail}
-                </div>
-              </div>
-            ))}
-          </div>
+              />
+              <p style={{ fontSize: 13, color: "#C5CDD3", lineHeight: 1.6, margin: 0 }}>
+                {content}
+              </p>
+            </div>
+          ))}
 
-          {/* Download full trace link */}
-          <button
-            onClick={handleDownload}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginTop: 12,
-              padding: 0,
-              background: "transparent",
-              border: "none",
-              color: "#5C6C75",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            <DownloadIcon />
-            <span>Download full trace (JSON)</span>
-          </button>
+          {/* Download link */}
+          {totalSteps > 0 && (
+            <button
+              onClick={handleDownload}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 16,
+                padding: 0,
+                background: "transparent",
+                border: "none",
+                color: "#5C6C75",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              <DownloadIcon />
+              <span>Full trace ({totalSteps} steps)</span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1074,9 +1099,9 @@ function ListView({
   });
 
   const openItems = items.filter((f) => f.status === "new" || f.status === "acknowledged");
-  const snoozedCount = 2;
-  const resolvedCount = items.filter((f) => f.status === "approved").length || 14;
-  const dismissedCount = items.filter((f) => f.status === "dismissed").length || 3;
+  const snoozedCount = items.filter((f) => f.status === "acknowledged").length;
+  const resolvedCount = items.filter((f) => f.status === "approved").length;
+  const dismissedCount = items.filter((f) => f.status === "dismissed").length;
 
   const filteredItems = useMemo(() => {
     let result = activeTab === "open" ? openItems : items.filter((f) => {
@@ -1095,6 +1120,10 @@ function ListView({
     }
     if (filters.category !== "all") {
       result = result.filter((f) => f.agent === filters.category);
+    }
+
+    if (filters.cluster !== "all") {
+      result = result.filter((f) => extractClusterFromFinding(f) === filters.cluster);
     }
 
     if (filters.sort === "impact") {
@@ -1266,18 +1295,6 @@ function ListView({
             options={[{ value: "all", label: "all" }, ...clusters.map((c) => ({ value: c, label: c }))]}
             onChange={(val) => setFilters({ ...filters, cluster: val })}
           />
-
-          <button
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#00ED64",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            + Add filter
-          </button>
 
           <div style={{ flex: 1 }} />
 
@@ -1476,7 +1493,7 @@ export function Findings() {
   const [toastFading, setToastFading] = useState(false);
   const resetPresses = useRef<number[]>([]);
 
-  const selectedId = searchParams.get("selected");
+  const selectedId = searchParams.get("selected") || searchParams.get("id");
 
   const load = useCallback(async () => {
     try {
@@ -1585,9 +1602,6 @@ export function Findings() {
               <h1 style={{ fontSize: 24, color: "#FFFFFF", fontWeight: 500, margin: 0 }}>
                 Findings
               </h1>
-              <p style={{ fontSize: 14, color: "#889397", marginTop: 6, lineHeight: 1.5 }}>
-                Triage what MDBA found across your {clusterCount} clusters
-              </p>
             </div>
 {/* Status removed - was confusing ("Live scanning" without context) */}
           </div>
