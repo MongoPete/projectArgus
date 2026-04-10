@@ -8,7 +8,8 @@ import {
   PIPELINE_TEMPLATES,
   TOOL_COLORS,
 } from "@/components/PipelineTimeline";
-// Shared components available: PageContainer, Card from "@/components/PageContainer"
+import { PageContainer, Card } from "@/components/PageContainer";
+import { Pill } from "@/components/Pill";
 
 // =============================================================================
 // HELPERS
@@ -204,13 +205,29 @@ export function WorkflowDetail() {
   const totalSavings = openFindings.reduce((sum, f) => sum + (f.estimated_monthly_savings_usd ?? 0), 0);
 
   if (id === "new") return null;
-  if (err) return <div className="text-red-300">{err}</div>;
-  if (!w) return <p className="text-slate-400">Loading...</p>;
+
+  if (err) {
+    return (
+      <PageContainer>
+        <Card className="p-6">
+          <p className="text-[#FF6960]">{err}</p>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  if (!w) {
+    return (
+      <PageContainer>
+        <p className="text-[#889397]">Loading...</p>
+      </PageContainer>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       {/* Back link */}
-      <Link to="/workflows" className="text-sm text-mdb-leaf hover:underline">
+      <Link to="/workflows" className="inline-flex items-center gap-1 text-sm text-mdb-leaf hover:underline">
         ← Workflows
       </Link>
 
@@ -218,23 +235,22 @@ export function WorkflowDetail() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-white">{w.name}</h1>
-          <p className="text-slate-400 mt-1">{w.description}</p>
-          <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-[#5C6C75]">
-            <span className="text-mdb-leaf">Active</span>
-            <span>·</span>
-            <span>
+          <p className="text-[#889397] mt-1 text-sm max-w-xl">{w.description}</p>
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <Pill variant="success">Active</Pill>
+            <span className="text-xs text-[#5C6C75]">
               {w.trigger === "schedule"
-                ? `Schedule: ${w.schedule_cron}`
+                ? `${w.schedule_cron}`
                 : w.trigger === "manual"
-                ? "Manual trigger"
+                ? "Manual"
                 : w.trigger}
             </span>
-            <span>·</span>
-            <span>{w.steps.length} step{w.steps.length !== 1 ? "s" : ""}</span>
+            <span className="text-[#3D4F58]">·</span>
+            <span className="text-xs text-[#5C6C75]">{w.steps.length} step{w.steps.length !== 1 ? "s" : ""}</span>
             {recentRuns[0] && (
               <>
-                <span>·</span>
-                <span>Last run {timeAgo(recentRuns[0].started_at)}</span>
+                <span className="text-[#3D4F58]">·</span>
+                <span className="text-xs text-[#5C6C75]">Last run {timeAgo(recentRuns[0].started_at)}</span>
               </>
             )}
           </div>
@@ -244,14 +260,14 @@ export function WorkflowDetail() {
             type="button"
             disabled={running}
             onClick={runSimulation}
-            className="rounded-lg bg-mdb-leaf/20 border border-mdb-leaf/35 px-4 py-2 text-sm text-mdb-leaf hover:bg-mdb-leaf/30 disabled:opacity-50 transition-colors"
+            className="rounded-lg bg-mdb-leaf/10 border border-mdb-leaf/30 px-4 py-2 text-sm text-mdb-leaf hover:bg-mdb-leaf/20 disabled:opacity-50 transition-colors"
           >
             {running ? "Running..." : "Run now"}
           </button>
           <button
             type="button"
             onClick={openInFlowEditor}
-            className="rounded-lg border border-[#112733] px-4 py-2 text-sm text-[#C5CDD3] hover:bg-white/[0.02] transition-colors"
+            className="rounded-lg border border-[#112733] px-4 py-2 text-sm text-[#889397] hover:bg-white/[0.02] hover:text-[#C5CDD3] transition-colors"
           >
             Edit
           </button>
@@ -259,15 +275,15 @@ export function WorkflowDetail() {
       </div>
 
       {/* Analysis pipeline */}
-      <div className="glass rounded-xl p-5" data-tour="workflow-pipeline">
+      <Card className="p-5" data-tour="workflow-pipeline">
         <h2 className="text-sm font-medium text-white mb-4">Analysis pipeline</h2>
         <PipelineTimeline steps={pipelineSteps} />
-      </div>
+      </Card>
 
       {/* Two-column: Findings + Recent runs */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Findings card */}
-        <div className="glass rounded-xl p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-medium text-white">Findings</h2>
             <Link to="/findings" className="text-xs text-mdb-leaf hover:underline">
@@ -286,30 +302,24 @@ export function WorkflowDetail() {
           ) : (
             <p className="text-sm text-[#5C6C75]">All clear, no issues found.</p>
           )}
-        </div>
+        </Card>
 
         {/* Recent runs card */}
-        <div className="glass rounded-xl p-5">
+        <Card className="p-5">
           <h2 className="text-sm font-medium text-white mb-3">Last 3 runs</h2>
           {recentRuns.length > 0 ? (
             <div className="space-y-2">
               {recentRuns.map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center justify-between text-sm border-t border-[#0E2230] pt-2 first:border-0 first:pt-0"
+                  className="flex items-center justify-between text-sm border-t border-[#112733] pt-2 first:border-0 first:pt-0"
                 >
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[10px] uppercase px-2 py-0.5 rounded ${
-                        r.status === "completed"
-                          ? "bg-mdb-leaf/20 text-mdb-leaf"
-                          : r.status === "failed"
-                          ? "bg-red-500/20 text-red-300"
-                          : "bg-slate-600/30 text-slate-300"
-                      }`}
+                    <Pill
+                      variant={r.status === "completed" ? "success" : r.status === "failed" ? "critical" : "muted"}
                     >
                       {r.status === "completed" ? "OK" : r.status === "failed" ? "FAIL" : r.status}
-                    </span>
+                    </Pill>
                     <span className="text-[#889397]">{formatTime(r.started_at)}</span>
                   </div>
                   <span className="text-[#5C6C75] text-xs">
@@ -321,16 +331,17 @@ export function WorkflowDetail() {
           ) : (
             <p className="text-sm text-[#5C6C75]">No runs yet.</p>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Execution log (only show when running or has log) */}
       {simLog.length > 0 && (
-        <div className="glass rounded-xl p-5">
+        <Card className="p-5">
           <h2 className="text-sm font-medium text-white mb-3">Execution log</h2>
           <div
             ref={logRef}
-            className="rounded-lg bg-black/40 border border-white/[0.06] p-4 font-mono text-[11px] text-slate-400 leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap"
+            className="rounded-lg bg-[#001E2B] border border-[#112733] p-4 font-mono text-[11px] text-[#889397] leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap scrollbar-dark"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "#112733 #001E2B" }}
           >
             {simLog.map((line, i) => (
               <div
@@ -338,7 +349,7 @@ export function WorkflowDetail() {
                 className={
                   line.startsWith("✅") ? "text-mdb-leaf font-semibold" :
                   line.startsWith("  ✓") ? "text-mdb-leaf/80" :
-                  line.startsWith("  ✗") ? "text-red-400" :
+                  line.startsWith("  ✗") ? "text-[#FF6960]" :
                   line.startsWith("▶") ? "text-white font-medium" :
                   ""
                 }
@@ -350,7 +361,7 @@ export function WorkflowDetail() {
               <span className="inline-block w-2 h-3.5 bg-mdb-leaf/80 animate-pulse ml-0.5" />
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Delete button */}
@@ -359,11 +370,11 @@ export function WorkflowDetail() {
           type="button"
           disabled={deleting}
           onClick={handleDelete}
-          className="rounded-lg border border-red-500/25 text-red-400/70 px-4 py-2 text-sm hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50 transition-colors"
+          className="rounded-lg border border-[#FF6960]/25 text-[#FF6960]/70 px-4 py-2 text-sm hover:bg-[#FF6960]/10 hover:text-[#FF6960] disabled:opacity-50 transition-colors"
         >
           {deleting ? "Deleting..." : "Delete workflow"}
         </button>
       </div>
-    </div>
+    </PageContainer>
   );
 }
