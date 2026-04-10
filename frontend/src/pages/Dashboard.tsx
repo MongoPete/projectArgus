@@ -413,204 +413,179 @@ function StatCardSavings({ totalSavings, findings }: { totalSavings: number; fin
   );
 }
 
-function StatCardEstate({ clusters }: { clusters: ClusterInfo[] }) {
+function StatCardClusters({ clusters }: { clusters: ClusterInfo[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const health = getClusterHealth(clusters);
+  const allHealthy = health.critical === 0 && health.warning === 0;
 
-  const problemClusters = useMemo(() => {
-    return clusters
-      .filter((c) => c.status === "critical" || c.status === "warning")
-      .sort((a, b) => {
-        if (a.status === "critical" && b.status !== "critical") return -1;
-        if (b.status === "critical" && a.status !== "critical") return 1;
-        return 0;
-      });
-  }, [clusters]);
-
-  const needsAttention = problemClusters.length > 0;
+  const criticalClusters = clusters.filter(c => c.status === "critical");
+  const warningClusters = clusters.filter(c => c.status === "warning");
+  const hasIssues = criticalClusters.length > 0 || warningClusters.length > 0;
 
   return (
-    <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, padding: "18px 20px", height: "100%", boxSizing: "border-box" }}>
+    <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid #112733", borderRadius: 10, padding: "18px 20px", height: "100%", boxSizing: "border-box", position: "relative" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 12, textTransform: "uppercase", color: "#889397", letterSpacing: "0.05em" }}>ESTATE</span>
+        <span style={{ fontSize: 12, textTransform: "uppercase", color: "#889397", letterSpacing: "0.05em" }}>CLUSTERS</span>
         <ServerIcon />
       </div>
       <div style={{ marginTop: 8 }}>
         <span style={{ fontSize: 36, fontWeight: 500, color: "#FFFFFF", lineHeight: 1 }}>{health.total}</span>
-        <span style={{ fontSize: 15, color: "#5C6C75", marginLeft: 6 }}>cluster{health.total !== 1 ? "s" : ""}</span>
+        <span style={{ fontSize: 15, color: "#5C6C75", marginLeft: 6 }}>monitored</span>
       </div>
-      <div style={{ marginTop: 12, fontSize: 11 }}>
-        {needsAttention ? (
-          <>
-            <div style={{ color: "#5C6C75", marginBottom: 6 }}>
-              <span style={{ color: problemClusters.length > 0 ? "#FF6960" : "#FFC010" }}>
-                {problemClusters.length} need{problemClusters.length === 1 ? "s" : ""} attention
-              </span>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {problemClusters.slice(0, 3).map((cluster) => (
-                <span
-                  key={cluster.name}
-                  style={{
-                    fontSize: 12,
-                    padding: "2px 6px",
-                    borderRadius: 3,
-                    fontFamily: "ui-monospace, monospace",
-                    background: cluster.status === "critical" ? "rgba(255,105,96,0.1)" : "rgba(255,192,16,0.1)",
-                    color: cluster.status === "critical" ? "#FF6960" : "#FFC010",
-                    border: `0.5px solid ${cluster.status === "critical" ? "rgba(255,105,96,0.3)" : "rgba(255,192,16,0.3)"}`,
-                  }}
-                >
-                  {cluster.name}
-                </span>
-              ))}
-              {problemClusters.length > 3 && (
-                <span style={{ fontSize: 12, color: "#5C6C75", padding: "2px 4px" }}>
-                  +{problemClusters.length - 3} more
-                </span>
-              )}
-            </div>
-            <div style={{ marginTop: 8, color: "#5C6C75" }}>
-              <span style={{ color: "rgba(0,237,100,0.8)" }}>{health.healthy} healthy</span>
-            </div>
-          </>
+      <div style={{ marginTop: 12, fontSize: 12, color: "#5C6C75", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {allHealthy ? (
+          <span style={{ color: "#00ED64" }}>All healthy</span>
         ) : (
-          <div style={{ color: "rgba(0,237,100,0.8)" }}>All clusters healthy</div>
+          <span>
+            <span style={{ color: "#00ED64" }}>{health.healthy} healthy</span>
+            {health.warning > 0 && <span style={{ color: "#FFC010" }}> · {health.warning} warning</span>}
+            {health.critical > 0 && <span style={{ color: "#FF6960" }}> · {health.critical} critical</span>}
+          </span>
+        )}
+        {hasIssues && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#00ED64",
+              fontSize: 12,
+              cursor: "pointer",
+              padding: "2px 6px",
+              borderRadius: 4,
+            }}
+          >
+            {isExpanded ? "Hide" : "Details"}
+          </button>
         )}
       </div>
+
+      {/* Expandable details panel */}
+      {isExpanded && hasIssues && (
+        <div style={{
+          marginTop: 14,
+          paddingTop: 14,
+          borderTop: "0.5px solid #112733",
+        }}>
+          {criticalClusters.length > 0 && (
+            <div style={{ marginBottom: warningClusters.length > 0 ? 10 : 0 }}>
+              <div style={{ fontSize: 11, color: "#FF6960", marginBottom: 6, fontWeight: 500 }}>
+                Critical ({criticalClusters.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {criticalClusters.map(c => (
+                  <span
+                    key={c.name}
+                    style={{
+                      fontSize: 11,
+                      padding: "3px 8px",
+                      borderRadius: 4,
+                      background: "rgba(255,105,96,0.1)",
+                      color: "#FF6960",
+                      border: "0.5px solid rgba(255,105,96,0.3)",
+                      fontFamily: "ui-monospace, monospace",
+                    }}
+                  >
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {warningClusters.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "#FFC010", marginBottom: 6, fontWeight: 500 }}>
+                Warning ({warningClusters.length})
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {warningClusters.map(c => (
+                  <span
+                    key={c.name}
+                    style={{
+                      fontSize: 11,
+                      padding: "3px 8px",
+                      borderRadius: 4,
+                      background: "rgba(255,192,16,0.1)",
+                      color: "#FFC010",
+                      border: "0.5px solid rgba(255,192,16,0.3)",
+                      fontFamily: "ui-monospace, monospace",
+                    }}
+                  >
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // =============================================================================
-// CONSTELLATION SVG
+// DECORATIVE NETWORK SVG
 // =============================================================================
 
-interface ConstellationProps {
-  clusters: ClusterInfo[];
-  topCriticalCluster: string | null;
-}
+function NetworkGraphSVG() {
+  // Static decorative network pattern - clean and modern
+  const nodes = [
+    { x: 120, y: 30, r: 5, primary: true },
+    { x: 180, y: 45, r: 4, primary: false },
+    { x: 80, y: 55, r: 4, primary: false },
+    { x: 150, y: 75, r: 6, primary: true },
+    { x: 220, y: 80, r: 3.5, primary: false },
+    { x: 50, y: 90, r: 3, primary: false },
+    { x: 100, y: 100, r: 4, primary: false },
+    { x: 190, y: 110, r: 5, primary: true },
+    { x: 130, y: 130, r: 4, primary: false },
+    { x: 70, y: 135, r: 3, primary: false },
+    { x: 170, y: 145, r: 3.5, primary: false },
+    { x: 240, y: 125, r: 3, primary: false },
+    { x: 30, y: 60, r: 2.5, primary: false },
+  ];
 
-function ConstellationSVG({ clusters, topCriticalCluster }: ConstellationProps) {
-  const maxDots = clusters.length <= 12 ? clusters.length : clusters.length <= 30 ? clusters.length : 15;
-  const dotRadius = clusters.length <= 12 ? 3 : clusters.length <= 30 ? 2 : 2.5;
-
-  const criticalClusters = clusters.filter((c) => c.status === "critical");
-  const warningClusters = clusters.filter((c) => c.status === "warning");
-  const healthyClusters = clusters.filter((c) => c.status === "healthy");
-
-  const displayClusters: ClusterInfo[] = [];
-  displayClusters.push(...criticalClusters.slice(0, 12));
-  displayClusters.push(...warningClusters.slice(0, Math.min(warningClusters.length, maxDots - displayClusters.length)));
-
-  const remainingSlots = maxDots - displayClusters.length;
-  if (remainingSlots > 0 && healthyClusters.length > 0) {
-    const step = Math.max(1, Math.floor(healthyClusters.length / remainingSlots));
-    for (let i = 0; i < remainingSlots && i * step < healthyClusters.length; i++) {
-      displayClusters.push(healthyClusters[i * step]);
-    }
-  }
-
-  const positions = useMemo(() => {
-    const count = displayClusters.length;
-    if (count === 0) return [];
-
-    const pts: { x: number; y: number }[] = [];
-    const width = 240;
-    const height = 160;
-    const padding = 25;
-
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + (i % 3) * 0.3;
-      const radius = 40 + (i % 4) * 15 + (i % 2) * 10;
-      const x = (width / 2) + Math.cos(angle) * radius * 0.8 + ((i * 17) % 30) - 15;
-      const y = (height / 2) + Math.sin(angle) * radius * 0.5 + ((i * 13) % 20) - 10;
-      pts.push({
-        x: Math.max(padding, Math.min(width - padding, x)),
-        y: Math.max(padding, Math.min(height - padding, y)),
-      });
-    }
-    return pts;
-  }, [displayClusters.length]);
-
-  const criticalIndex = displayClusters.findIndex((c) => c.status === "critical");
-  const annotationCluster = criticalIndex >= 0 ? displayClusters[criticalIndex] : null;
-  const annotationPos = criticalIndex >= 0 ? positions[criticalIndex] : null;
+  const connections = [
+    [0, 1], [0, 2], [0, 3], [1, 3], [1, 4], [2, 3], [2, 5], [2, 6],
+    [3, 6], [3, 7], [3, 8], [4, 7], [5, 9], [6, 8], [6, 9],
+    [7, 8], [7, 11], [8, 10], [9, 10], [2, 12], [5, 12]
+  ];
 
   return (
-    <svg viewBox="0 0 240 160" style={{ position: "absolute", top: 14, right: 14, width: 240, height: 160, opacity: 0.95 }}>
-      {positions.map((pos, i) => {
-        if (i === 0) return null;
-        const prev = positions[i - 1];
-        const isCriticalLine = displayClusters[i]?.status === "critical" || displayClusters[i - 1]?.status === "critical";
-        return (
-          <line
-            key={`line-${i}`}
-            x1={prev.x}
-            y1={prev.y}
-            x2={pos.x}
-            y2={pos.y}
-            stroke={isCriticalLine ? "rgba(255,105,96,0.35)" : "rgba(0,237,100,0.15)"}
-            strokeWidth={isCriticalLine ? 0.6 : 0.5}
-          />
-        );
-      })}
-      {displayClusters.map((cluster, i) => {
-        const pos = positions[i];
-        if (!pos) return null;
-
-        const fill =
-          cluster.status === "critical"
-            ? "#FF6960"
-            : cluster.status === "warning"
-            ? "#FFC010"
-            : "#00ED64";
-
-        const className =
-          cluster.status === "critical"
-            ? "dot-crit"
-            : cluster.status === "warning"
-            ? ""
-            : "dot-ok";
-
-        const r = cluster.status === "critical" ? dotRadius + 1 : dotRadius;
-
-        return (
-          <circle
-            key={i}
-            className={className}
-            cx={pos.x}
-            cy={pos.y}
-            r={r}
-            fill={fill}
-            opacity={cluster.status === "warning" ? 0.7 : undefined}
-          >
-            <title>{cluster.name}</title>
-          </circle>
-        );
-      })}
-      {annotationCluster && annotationPos && (
-        <>
-          <line
-            x1={annotationPos.x + 10}
-            y1={annotationPos.y + 10}
-            x2={annotationPos.x + 35}
-            y2={annotationPos.y + 30}
-            stroke="#FF6960"
-            strokeWidth="0.5"
-            opacity="0.5"
-          />
-          <text
-            x={annotationPos.x + 15}
-            y={annotationPos.y + 43}
-            fill="#FF6960"
-            fontSize="9"
-            fontFamily="ui-monospace, monospace"
-            fontWeight="500"
-          >
-            {topCriticalCluster || annotationCluster.name}
-          </text>
-        </>
-      )}
+    <svg viewBox="0 0 280 170" style={{ position: "absolute", top: 10, right: 10, width: 320, height: 190, opacity: 0.85 }}>
+      {/* Connection lines */}
+      {connections.map(([from, to], i) => (
+        <line
+          key={`line-${i}`}
+          x1={nodes[from].x}
+          y1={nodes[from].y}
+          x2={nodes[to].x}
+          y2={nodes[to].y}
+          stroke="rgba(0,237,100,0.2)"
+          strokeWidth={0.6}
+        />
+      ))}
+      {/* Subtle glow for primary nodes */}
+      {nodes.filter(n => n.primary).map((node, i) => (
+        <circle
+          key={`glow-${i}`}
+          cx={node.x}
+          cy={node.y}
+          r={node.r * 2.5}
+          fill="rgba(0,237,100,0.08)"
+        />
+      ))}
+      {/* Nodes */}
+      {nodes.map((node, i) => (
+        <circle
+          key={`node-${i}`}
+          className="dot-ok"
+          cx={node.x}
+          cy={node.y}
+          r={node.r}
+          fill={node.primary ? "#00ED64" : "rgba(0,237,100,0.6)"}
+        />
+      ))}
     </svg>
   );
 }
@@ -1614,7 +1589,7 @@ export function Dashboard() {
             marginBottom: 24,
           }}
         >
-          <ConstellationSVG clusters={MOCK_CLUSTERS} topCriticalCluster={topClusterName} />
+          <NetworkGraphSVG />
 
           <div style={{ maxWidth: 460, position: "relative" }}>
             <div style={{ fontSize: 12, color: "#00ED64", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500 }}>
@@ -1678,7 +1653,7 @@ export function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, alignItems: "stretch" }}>
           <StatCardFindings findings={data.top_findings} />
           <StatCardSavings totalSavings={data.total_addressable_savings_usd} findings={data.top_findings} />
-          <StatCardEstate clusters={MOCK_CLUSTERS} />
+          <StatCardClusters clusters={MOCK_CLUSTERS} />
         </div>
 
         {/* TABBED WORKSPACE */}
