@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/api";
-import type { DashboardSummary, FindingPreview } from "@/types";
-import { Pill, severityToVariant, type PillVariant } from "@/components/Pill";
+import type { DashboardSummary, FindingPreview, Finding, Workflow, RunRecord } from "@/types";
+import { Pill, severityToVariant } from "@/components/Pill";
 import { TabBar, type Tab } from "@/components/TabBar";
 import { PageContainer, TableContainer, TableFooter } from "@/components/PageContainer";
 import { FilterBar, FilterDropdown, SearchInput, FilterSpacer } from "@/components/FilterBar";
@@ -31,91 +31,12 @@ const MOCK_CLUSTERS: ClusterInfo[] = [
   { name: "config-db", status: "healthy" },
 ];
 
-const MOCK_WORKFLOWS = [
-  {
-    id: "cost-query",
-    name: "Cost & query health",
-    iconType: "cost" as const,
-    status: "scanning" as const,
-    schedule: "every 6h",
-    scope: "12 clusters",
-    lastRunAt: "4m ago",
-    nextRunIn: "in 5h 56m",
-    findingsCount: 2,
-    findingsSeverity: "med" as const,
-  },
-  {
-    id: "security",
-    name: "Security & data quality",
-    iconType: "security" as const,
-    status: "active" as const,
-    schedule: "hourly",
-    scope: "payments-prod",
-    lastRunAt: "14m ago",
-    nextRunIn: "in 46m",
-    findingsCount: 1,
-    findingsSeverity: "crit" as const,
-  },
-  {
-    id: "backup",
-    name: "Backup & index audit",
-    iconType: "backup" as const,
-    status: "active" as const,
-    schedule: "daily",
-    scope: "all clusters",
-    lastRunAt: "1h ago",
-    nextRunIn: "in 23h",
-    findingsCount: 2,
-    findingsSeverity: "med" as const,
-  },
-];
-
-interface HistoryItem {
-  time: string;
-  type: string;
-  pill: PillVariant;
-  title: string;
-  meta: string;
-  metaHighlight?: string;
-  context: string;
-}
-
-interface HistoryGroup {
-  day: string;
-  items: HistoryItem[];
-}
-
-const MOCK_HISTORY: HistoryGroup[] = [
-  {
-    day: "Today",
-    items: [
-      { time: "9:14 AM", type: "scan", pill: "success", title: "Cost & query health workflow ran across 12 clusters", meta: "2 new findings · spend, query", metaHighlight: "amber", context: "2.4s" },
-      { time: "9:10 AM", type: "finding", pill: "medium", title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication", context: "$1,520" },
-      { time: "2:47 AM", type: "critical", pill: "critical", title: "Unusual IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", context: "unresolved" },
-    ],
-  },
-  {
-    day: "Yesterday",
-    items: [
-      { time: "4:12 PM", type: "resolved", pill: "success", title: "3 unused indexes dropped on analytics-warehouse", meta: "approved by Sarah · cleanup workflow", context: "$340/mo" },
-      { time: "9:00 AM", type: "scan", pill: "success", title: "Backup & index audit completed", meta: "2 findings · all clusters scanned", metaHighlight: "amber", context: "4.1s" },
-    ],
-  },
-  {
-    day: "Earlier this week",
-    items: [
-      { time: "Tue Apr 6", type: "config", pill: "low", title: 'Workflow "Cost & query health" was modified', meta: "schedule changed from 12h to 6h · by Sarah", context: "-" },
-    ],
-  },
-];
-
 const MOCK_ACTIVITY = [
-  { when: "just now", isLive: true, pill: "scan" as const, title: "Cost & query health is scanning · 8 of 12 clusters", meta: "started 12s ago · 2 findings so far · ~3s remaining", impact: "live" },
-  { when: "2h ago", isLive: false, pill: "medium" as const, title: "Data transfer up 34% on prod-east-1", meta: "spend · cross-region replication anomaly", impact: "$1,520/mo" },
-  { when: "5h ago", isLive: false, pill: "medium" as const, title: "Backup audit found over-snapshotting on 8 clusters", meta: "backup · low-churn collections", impact: "$1,240/mo" },
-  { when: "14h ago", isLive: false, pill: "critical" as const, title: "A new IP read 847k records from user_pii", meta: "payments-prod · 340x normal access pattern", impact: "review", whenColor: "#FF6960" },
-  { when: "yesterday", isLive: false, pill: "success" as const, title: "Sarah approved index cleanup on analytics-warehouse", meta: "3 indexes dropped · saving going forward", impact: "$340/mo" },
-  { when: "yesterday", isLive: false, pill: "info" as const, title: "Backup & index audit completed", meta: "all clusters · 2 findings", impact: "4.1s" },
+  { when: "just now", isLive: true, pill: "scan" as const, title: "App speed workflow scanning prod-east-1", meta: "checking slow queries and indexes", impact: "live" },
+  { when: "12m ago", isLive: false, pill: "info" as const, title: "App speed workflow completed", meta: "prod-east-1 · 2 findings", impact: "2.4s" },
+  { when: "2h ago", isLive: false, pill: "medium" as const, title: "Spend drift detected on prod-east-1", meta: "costs & usage · 34% above baseline", impact: "$1,520/mo" },
+  { when: "6h ago", isLive: false, pill: "critical" as const, title: "Unusual access pattern on payments-prod", meta: "security · new IP read 847k records", impact: "review", whenColor: "#FF6960" },
+  { when: "6h ago", isLive: false, pill: "info" as const, title: "Security workflow completed", meta: "payments-prod · 1 finding", impact: "3.1s" },
 ];
 
 // =============================================================================
@@ -488,9 +409,16 @@ const defaultFilters: FilterState = {
 // TABBED WORKSPACE
 // =============================================================================
 
-type TabKey = "findings" | "workflows" | "history" | "activity";
+type TabKey = "findings" | "workflows" | "activity";
 
-function TabbedWorkspace({ data }: { data: DashboardSummary }) {
+interface TabbedWorkspaceProps {
+  data: DashboardSummary;
+  workflows: Workflow[];
+  runs: RunRecord[];
+  findings: Finding[];
+}
+
+function TabbedWorkspace({ data, workflows, runs, findings }: TabbedWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("findings");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
@@ -508,7 +436,6 @@ function TabbedWorkspace({ data }: { data: DashboardSummary }) {
   const tabs: Tab<TabKey>[] = [
     { key: "findings", label: "Findings", count: data.open_findings, countVariant: hasCriticalFindings ? "warning" : "success" },
     { key: "workflows", label: "Workflows", count: data.workflows_active },
-    { key: "history", label: "History" },
     { key: "activity", label: "Activity", showDot: true },
   ];
 
@@ -524,8 +451,7 @@ function TabbedWorkspace({ data }: { data: DashboardSummary }) {
       <FilterRowComponent activeTab={activeTab} filters={filters} onFilterChange={updateFilter} />
 
       {activeTab === "findings" && <FindingsTab findings={data.top_findings} filters={filters} />}
-      {activeTab === "workflows" && <WorkflowsTab filters={filters} />}
-      {activeTab === "history" && <HistoryTab filters={filters} />}
+      {activeTab === "workflows" && <WorkflowsTab workflows={workflows} runs={runs} findings={findings} filters={filters} />}
       {activeTab === "activity" && <ActivityTab filters={filters} />}
     </TableContainer>
   );
@@ -553,11 +479,6 @@ function FilterRowComponent({ activeTab, filters, onFilterChange }: FilterRowPro
       { key: "schedule", label: "Schedule", options: [{ value: "all", label: "all" }, { value: "hourly", label: "hourly" }, { value: "every 6h", label: "every 6h" }, { value: "daily", label: "daily" }] },
       { key: "scope", label: "Scope", options: [{ value: "all", label: "all" }, { value: "all clusters", label: "all clusters" }, { value: "payments-prod", label: "payments-prod" }] },
     ],
-    history: [
-      { key: "date", label: "Date", options: [{ value: "last 7d", label: "last 7d" }, { value: "last 24h", label: "last 24h" }, { value: "last 30d", label: "last 30d" }] },
-      { key: "type", label: "Type", options: [{ value: "all", label: "all" }, { value: "scan", label: "scan" }, { value: "finding", label: "finding" }, { value: "critical", label: "critical" }] },
-      { key: "cluster", label: "Cluster", options: [{ value: "all", label: "all" }, { value: "payments-prod", label: "payments-prod" }, { value: "analytics-warehouse", label: "analytics-warehouse" }] },
-    ],
     activity: [
       { key: "type", label: "Type", options: [{ value: "all", label: "all" }, { value: "scan", label: "scan" }, { value: "finding", label: "finding" }, { value: "critical", label: "critical" }] },
       { key: "cluster", label: "Cluster", options: [{ value: "all", label: "all" }, { value: "payments-prod", label: "payments-prod" }, { value: "analytics-warehouse", label: "analytics-warehouse" }] },
@@ -567,7 +488,6 @@ function FilterRowComponent({ activeTab, filters, onFilterChange }: FilterRowPro
   const sortOptions: Record<TabKey, { value: string; label: string }[]> = {
     findings: [{ value: "impact", label: "impact" }, { value: "severity", label: "severity" }, { value: "recent", label: "recent" }],
     workflows: [{ value: "last run", label: "last run" }, { value: "next run", label: "next run" }, { value: "name", label: "name" }],
-    history: [{ value: "recent", label: "recent" }, { value: "type", label: "type" }],
     activity: [{ value: "recent", label: "recent" }, { value: "impact", label: "impact" }],
   };
 
@@ -595,11 +515,7 @@ function FilterRowComponent({ activeTab, filters, onFilterChange }: FilterRowPro
       {activeTab === "activity" ? (
         <span className="text-xs text-mdb-leaf px-3 py-1.5 border-[0.5px] border-mdb-leaf/25 bg-mdb-leaf/[0.04] rounded-md flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-mdb-leaf animate-pulse" />
-          live · auto-refreshing
-        </span>
-      ) : activeTab === "history" ? (
-        <span className="text-xs text-[#C5CDD3] px-3 py-1.5 border-[0.5px] border-[#1C2D38] rounded-md cursor-pointer hover:bg-white/[0.02]">
-          Export
+          live
         </span>
       ) : (
         <FilterDropdown
@@ -745,7 +661,46 @@ function FindingsTab({ findings, filters }: { findings: FindingPreview[]; filter
 // WORKFLOWS TAB
 // =============================================================================
 
-function WorkflowsTab({ filters }: { filters: FilterState }) {
+function getScheduleLabel(trigger: string, cron: string | null): string {
+  if (trigger === "manual") return "Manual";
+  if (!cron) return "Scheduled";
+  if (cron.includes("0 * * * *")) return "Hourly";
+  if (cron.includes("0 */6 * * *")) return "Every 6h";
+  if (cron.includes("0 7 * * *")) return "Daily";
+  return "Scheduled";
+}
+
+function timeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function getAgentIcon(agents: string[]): string {
+  if (agents.some(a => a.includes("spend"))) return "cost";
+  if (agents.some(a => a.includes("security"))) return "security";
+  if (agents.some(a => a.includes("backup"))) return "backup";
+  return "cost";
+}
+
+interface WorkflowsTabProps {
+  workflows: Workflow[];
+  runs: RunRecord[];
+  findings: Finding[];
+  filters: FilterState;
+}
+
+function WorkflowsTab({ workflows, runs, findings, filters }: WorkflowsTabProps) {
   const navigate = useNavigate();
 
   const iconChips: Record<string, React.ReactNode> = {
@@ -754,39 +709,75 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
     backup: <BackupIconChip />,
   };
 
-  const severityColors: Record<string, string> = {
-    crit: "#FF6960",
-    med: "#FFC010",
-    low: "#889397",
-  };
+  // Derive workflow metadata from runs and findings
+  const workflowMeta = useMemo(() => {
+    const meta: Record<string, {
+      lastRun: RunRecord | null;
+      lastRunAt: string;
+      findingsCount: number;
+    }> = {};
+
+    workflows.forEach((w) => {
+      const workflowRuns = runs
+        .filter((r) => r.workflow_id === w.id)
+        .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+
+      const lastRun = workflowRuns[0] || null;
+      // Count actual findings linked to this workflow
+      const findingsCount = findings.filter((f) => f.workflow_id === w.id).length;
+
+      meta[w.id] = {
+        lastRun,
+        lastRunAt: lastRun ? timeAgo(lastRun.started_at) : "never",
+        findingsCount,
+      };
+    });
+
+    return meta;
+  }, [workflows, runs, findings]);
 
   const filteredWorkflows = useMemo(() => {
-    let result = [...MOCK_WORKFLOWS];
+    let result = [...workflows];
 
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase();
       result = result.filter(
         (w) =>
           w.name.toLowerCase().includes(q) ||
-          w.scope.toLowerCase().includes(q) ||
-          w.schedule.toLowerCase().includes(q)
+          w.description.toLowerCase().includes(q)
       );
     }
 
     if (filters.status !== "all") {
-      result = result.filter((w) => w.status === filters.status);
+      if (filters.status === "active") {
+        result = result.filter((w) => w.trigger !== "manual");
+      } else if (filters.status === "paused") {
+        result = result.filter((w) => w.trigger === "manual");
+      }
     }
 
     if (filters.schedule !== "all") {
-      result = result.filter((w) => w.schedule === filters.schedule);
+      result = result.filter((w) => {
+        const label = getScheduleLabel(w.trigger, w.schedule_cron).toLowerCase();
+        return label === filters.schedule.toLowerCase();
+      });
     }
 
     if (filters.sort === "name") {
       result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (filters.sort === "last run") {
+      result.sort((a, b) => {
+        const aRun = workflowMeta[a.id]?.lastRun;
+        const bRun = workflowMeta[b.id]?.lastRun;
+        if (!aRun && !bRun) return 0;
+        if (!aRun) return 1;
+        if (!bRun) return -1;
+        return new Date(bRun.started_at).getTime() - new Date(aRun.started_at).getTime();
+      });
     }
 
     return result;
-  }, [filters]);
+  }, [workflows, filters, workflowMeta]);
 
   const gridCols = "28px 96px minmax(0,1fr) 90px 14px";
 
@@ -796,7 +787,7 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
         <span />
         <span>Status</span>
         <span>Workflow</span>
-        <span className="text-right">Next run</span>
+        <span className="text-right">Last run</span>
         <span />
       </div>
 
@@ -805,141 +796,45 @@ function WorkflowsTab({ filters }: { filters: FilterState }) {
           No workflows match your filters
         </div>
       ) : (
-        filteredWorkflows.map((w) => (
-          <div
-            key={w.id}
-            onClick={() => navigate("/workflows")}
-            className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
-            style={{ gridTemplateColumns: gridCols }}
-          >
-            {iconChips[w.iconType]}
-            <Pill variant={w.status === "scanning" ? "scan" : "muted"} showDot={w.status === "scanning"}>
-              {w.status === "scanning" ? "SCANNING" : "ACTIVE"}
-            </Pill>
-            <div className="min-w-0">
-              <div className="text-[15px] text-white truncate">{w.name}</div>
-              <div className="text-xs text-[#5C6C75] mt-1">
-                {w.schedule} · {w.scope} · ran {w.lastRunAt} ·{" "}
-                <span style={{ color: severityColors[w.findingsSeverity] }}>{w.findingsCount} findings</span>
+        filteredWorkflows.map((w) => {
+          const meta = workflowMeta[w.id];
+          const agents = w.steps.map(s => s.agent);
+          const iconType = getAgentIcon(agents);
+          const schedule = getScheduleLabel(w.trigger, w.schedule_cron);
+          const isActive = w.trigger !== "manual";
+
+          return (
+            <div
+              key={w.id}
+              onClick={() => navigate(`/workflows/${w.id}`)}
+              className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
+              style={{ gridTemplateColumns: gridCols }}
+            >
+              {iconChips[iconType] || <CostIconChip />}
+              <Pill variant={isActive ? "muted" : "muted"}>
+                {isActive ? "ACTIVE" : "MANUAL"}
+              </Pill>
+              <div className="min-w-0">
+                <div className="text-[15px] text-white truncate">{w.name}</div>
+                <div className="text-xs text-[#5C6C75] mt-1">
+                  {schedule} · {w.steps.length} step{w.steps.length !== 1 ? "s" : ""}
+                  {meta?.findingsCount > 0 && (
+                    <> · <span className="text-[#FFC010]">{meta.findingsCount} finding{meta.findingsCount !== 1 ? "s" : ""}</span></>
+                  )}
+                </div>
               </div>
+              <div className="text-right text-xs text-[#5C6C75]">{meta?.lastRunAt || "never"}</div>
+              <ChevronIcon />
             </div>
-            <div className="text-right text-xs text-[#5C6C75]">{w.nextRunIn}</div>
-            <ChevronIcon />
-          </div>
-        ))
+          );
+        })
       )}
 
       <TableFooter>
         <span className="text-[#5C6C75]">
-          Showing <span className="text-[#C5CDD3]">{filteredWorkflows.length}</span> of <span className="text-[#C5CDD3]">{MOCK_WORKFLOWS.length}</span> · monitoring{" "}
-          <span className="text-[#C5CDD3]">12</span> clusters ·{" "}
-          <span className="text-mdb-leaf">5 findings this week</span>
+          Showing <span className="text-[#C5CDD3]">{filteredWorkflows.length}</span> of <span className="text-[#C5CDD3]">{workflows.length}</span> workflows
         </span>
-        <Link to="/workflows" className="text-mdb-leaf hover:underline">Browse library</Link>
-      </TableFooter>
-    </>
-  );
-}
-
-// =============================================================================
-// HISTORY TAB
-// =============================================================================
-
-function HistoryTab({ filters }: { filters: FilterState }) {
-  const navigate = useNavigate();
-
-  const filteredHistory = useMemo(() => {
-    const allItems: (HistoryItem & { day: string })[] = [];
-    for (const group of MOCK_HISTORY) {
-      for (const item of group.items) {
-        allItems.push({ ...item, day: group.day });
-      }
-    }
-
-    let result = allItems;
-
-    if (filters.search.trim()) {
-      const q = filters.search.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.meta.toLowerCase().includes(q) ||
-          item.type.toLowerCase().includes(q)
-      );
-    }
-
-    if (filters.type !== "all") {
-      result = result.filter((item) => item.type === filters.type);
-    }
-
-    return result;
-  }, [filters]);
-
-  const groupedHistory = useMemo(() => {
-    const groups: Record<string, HistoryItem[]> = {};
-    for (const item of filteredHistory) {
-      if (!groups[item.day]) groups[item.day] = [];
-      groups[item.day].push(item);
-    }
-    return Object.entries(groups);
-  }, [filteredHistory]);
-
-  const gridCols = "78px 96px minmax(0,1fr) 90px 14px";
-
-  return (
-    <>
-      <div className="grid gap-3.5 px-6 py-2.5 text-xs text-[#5C6C75] uppercase tracking-wide" style={{ gridTemplateColumns: gridCols }}>
-        <span>Time</span>
-        <span>Type</span>
-        <span>Event</span>
-        <span className="text-right">Context</span>
-        <span />
-      </div>
-
-      {groupedHistory.length === 0 ? (
-        <div className="py-10 text-center text-[#5C6C75]">
-          No history matches your filters
-        </div>
-      ) : (
-        groupedHistory.map(([day, items]) => (
-          <div key={day}>
-            <div className="text-xs text-[#5C6C75] uppercase tracking-wide px-6 py-3.5 border-t border-[#0E2230]">
-              {day}
-            </div>
-            {items.map((item, i) => (
-              <div
-                key={i}
-                onClick={() => item.type === "finding" || item.type === "critical" ? navigate("/findings") : navigate("/runs")}
-                className="grid gap-3.5 px-6 py-3.5 items-center border-t border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
-                style={{ gridTemplateColumns: gridCols }}
-              >
-                <span className="text-xs text-[#5C6C75] font-mono">{item.time}</span>
-                <Pill variant={item.pill}>{item.type.toUpperCase()}</Pill>
-                <div className="min-w-0">
-                  <div className="text-[15px] text-white truncate">{item.title}</div>
-                  <div className="text-xs text-[#5C6C75] mt-1">
-                    {item.metaHighlight === "amber" ? (
-                      <span><span className="text-[#FFC010]">{item.meta.split("·")[0]}</span>·{item.meta.split("·").slice(1).join("·")}</span>
-                    ) : (
-                      item.meta
-                    )}
-                  </div>
-                </div>
-                <div className={`text-right text-xs ${item.context.startsWith("$") ? "text-mdb-leaf" : item.context === "unresolved" ? "text-[#FF6960]" : "text-[#5C6C75]"}`}>
-                  {item.context}
-                </div>
-                <ChevronIcon />
-              </div>
-            ))}
-          </div>
-        ))
-      )}
-
-      <TableFooter>
-        <span className="text-[#5C6C75]">
-          Showing <span className="text-[#C5CDD3]">{filteredHistory.length}</span> of <span className="text-[#C5CDD3]">24</span> events · last 7 days
-        </span>
-        <Link to="/runs" className="text-mdb-leaf hover:underline">View all runs</Link>
+        <Link to="/workflows" className="text-mdb-leaf hover:underline">View all</Link>
       </TableFooter>
     </>
   );
@@ -969,7 +864,6 @@ function ActivityTab({ filters }: { filters: FilterState }) {
         if (filters.type === "scan") return item.isLive || item.pill === "info";
         if (filters.type === "finding") return item.pill === "medium";
         if (filters.type === "critical") return item.pill === "critical";
-        if (filters.type === "resolved") return item.pill === "success" && !item.isLive;
         return true;
       });
     }
@@ -1035,7 +929,7 @@ function ActivityTab({ filters }: { filters: FilterState }) {
             >
               <span className={`text-xs ${item.whenColor ? "" : "text-[#5C6C75]"}`} style={{ color: item.whenColor }}>{item.when}</span>
               <Pill variant={item.pill}>
-                {item.pill === "critical" ? "CRITICAL" : item.pill === "medium" ? "FINDING" : item.pill === "success" ? "RESOLVED" : item.pill === "info" ? "SCAN" : item.pill.toUpperCase()}
+                {item.pill === "critical" ? "CRITICAL" : item.pill === "medium" ? "FINDING" : item.pill === "info" ? "SCAN" : item.pill.toUpperCase()}
               </Pill>
               <div className="min-w-0">
                 <div className="text-[15px] text-white truncate">{item.title}</div>
@@ -1062,9 +956,9 @@ function ActivityTab({ filters }: { filters: FilterState }) {
       <TableFooter>
         <span className="text-[#5C6C75] flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-mdb-leaf animate-pulse" />
-          Updates in real time as MDBA scans your estate
+          Updates in real time
         </span>
-        <span className="text-mdb-leaf cursor-pointer hover:underline">Load older</span>
+        <Link to="/runs" className="text-mdb-leaf hover:underline">View all runs</Link>
       </TableFooter>
     </>
   );
@@ -1076,14 +970,30 @@ function ActivityTab({ filters }: { filters: FilterState }) {
 
 export function Dashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [runs, setRuns] = useState<RunRecord[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    api
-      .dashboard()
-      .then(setData)
+  const loadData = useCallback(() => {
+    Promise.all([
+      api.dashboard(),
+      api.workflows.list(),
+      api.runs.list(),
+      api.findings.list(),
+    ])
+      .then(([dashboardData, workflowsData, runsData, findingsData]) => {
+        setData(dashboardData);
+        setWorkflows(workflowsData);
+        setRuns(runsData);
+        setFindings(findingsData);
+      })
       .catch((e: Error) => setErr(e.message));
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (err) {
     return (
@@ -1178,7 +1088,7 @@ export function Dashboard() {
       </div>
 
       {/* TABBED WORKSPACE */}
-      <TabbedWorkspace data={data} />
+      <TabbedWorkspace data={data} workflows={workflows} runs={runs} findings={findings} />
     </PageContainer>
   );
 }

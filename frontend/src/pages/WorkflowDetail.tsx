@@ -2,36 +2,17 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/api";
 import type { Finding, RunRecord, Workflow } from "@/types";
-import type { ToolKind } from "@/flow/toolPalette";
 import {
   PipelineTimeline,
   generatePipelineSteps,
+  PIPELINE_TEMPLATES,
+  TOOL_COLORS,
 } from "@/components/PipelineTimeline";
 // Shared components available: PageContainer, Card from "@/components/PageContainer"
 
 // =============================================================================
 // HELPERS
 // =============================================================================
-
-const AGENT_TO_TOOL: Record<string, ToolKind> = {
-  spend: "atlas_api",
-  slow_query: "mongodb",
-  backup: "atlas_api",
-  index_rationalization: "mongodb",
-  data_quality: "mongodb",
-  security: "atlas_api",
-  scaling: "atlas_api",
-};
-
-const stepDescriptions: Record<string, string> = {
-  spend: "Compares Atlas invoice data against a 30-day rolling average. Flags cost drift above the configured threshold.",
-  slow_query: "Scans system.profile for queries exceeding the slow threshold. Runs explain analysis and generates index recommendations.",
-  backup: "Evaluates snapshot frequency against actual data change rate. Identifies over-snapshotting and compliance gaps.",
-  index_rationalization: "Queries $indexStats across all collections. Identifies indexes with zero operations.",
-  data_quality: "Computes statistical anomalies on configured fields. Flags documents that exceed threshold deviations.",
-  security: "Analyzes Atlas audit logs for behavioral anomalies — new IP ranges, unusual read patterns.",
-  scaling: "Monitors CPU utilization, connection counts, and storage growth trends.",
-};
 
 function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
@@ -109,25 +90,65 @@ export function WorkflowDetail() {
 
   function openInFlowEditor() {
     if (!w) return;
-    const nodes = w.steps.map((s, i) => ({
-      id: `wf-${s.id}`,
+
+    // Build full pipeline steps from workflow agents
+    const allSteps: { id: string; label: string; desc: string; tool: string }[] = [];
+
+    w.steps.forEach((step) => {
+      const template = PIPELINE_TEMPLATES[step.agent];
+      if (template) {
+        template.forEach((t, i) => {
+          allSteps.push({
+            id: `${step.agent}-${i}`,
+            label: t.label,
+            desc: t.desc,
+            tool: t.tool,
+          });
+        });
+      }
+    });
+
+    // Add synthesis and delivery steps
+    allSteps.push({
+      id: "synthesize",
+      label: "Synthesize findings",
+      desc: "Rank by severity and estimated savings",
+      tool: "mdba",
+    });
+    allSteps.push({
+      id: "deliver",
+      label: "Deliver to inbox",
+      desc: "Publish findings for human review",
+      tool: "notify",
+    });
+
+    // Create nodes for each step
+    const nodes = allSteps.map((step, i) => ({
+      id: `wf-${step.id}`,
       type: "tool",
-      position: { x: 80, y: 40 + i * 160 },
+      position: { x: 80, y: 40 + i * 140 },
       data: {
-        tool: AGENT_TO_TOOL[s.agent] ?? "mdba",
-        label: s.label,
-        prompt: `[${s.agent}] ${stepDescriptions[s.agent] ?? s.label}\nConfig: ${JSON.stringify(s.config)}`,
+        tool: step.tool,
+        label: step.label,
+        prompt: step.desc,
         include_prior_memory: i > 0,
       },
     }));
-    const edges = nodes.slice(1).map((n, i) => ({
-      id: `we-${i}`,
-      source: nodes[i].id,
-      target: n.id,
-      type: "smoothstep",
-      markerEnd: { type: "arrowclosed", color: "#818cf8", width: 18, height: 18 },
-      style: { stroke: "#818cf8", strokeWidth: 2 },
-    }));
+
+    // Create edges with tool-colored styling
+    const edges = nodes.slice(1).map((n, i) => {
+      const sourceTool = allSteps[i].tool as keyof typeof TOOL_COLORS;
+      const color = TOOL_COLORS[sourceTool] || "#818cf8";
+      return {
+        id: `we-${i}`,
+        source: nodes[i].id,
+        target: n.id,
+        type: "smoothstep",
+        markerEnd: { type: "arrowclosed", color, width: 18, height: 18 },
+        style: { stroke: color, strokeWidth: 2 },
+      };
+    });
+
     nav("/advisor/flow", { state: { nodes, edges, flowName: w.name } });
   }
 
@@ -263,7 +284,7 @@ export function WorkflowDetail() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-[#5C6C75]">All clear — no issues found.</p>
+            <p className="text-sm text-[#5C6C75]">All clear, no issues found.</p>
           )}
         </div>
 

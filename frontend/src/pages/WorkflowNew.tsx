@@ -173,7 +173,7 @@ function ChatPanel({
     {
       role: "assistant",
       content:
-        "Hi — I'm your **Atlas Advisor**. Describe what you want to watch on your cluster (cost, slow queries, backups, security...). I'll draft a **workflow** you can save and run. No auto-writes: anything risky stays in **human approval**.",
+        "Describe what you want to monitor (costs, slow queries, backups, security...) and I'll draft a workflow you can save and run.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -210,7 +210,7 @@ function ChatPanel({
           ...m,
           {
             role: "assistant",
-            content: `Sorry — I couldn't reach the assistant API. (${(e as Error).message})`,
+            content: `Couldn't reach the assistant API. (${(e as Error).message})`,
           },
         ]);
       } finally {
@@ -368,18 +368,6 @@ function ChatPanel({
             Send
           </button>
         </form>
-        {onSwitchToEditor && (
-          <p className="text-center text-xs text-slate-500 pt-2">
-            Need tool-by-tool control?{" "}
-            <button
-              type="button"
-              onClick={onSwitchToEditor}
-              className="text-slate-400 hover:text-mdb-leaf"
-            >
-              Open flow editor
-            </button>
-          </p>
-        )}
       </div>
     </div>
   );
@@ -429,36 +417,20 @@ function FlowEditorPanel() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium text-white">Saved Flows</h3>
-          <p className="text-sm text-slate-400 mt-1">
-            Visual pipelines you've built. Open one to edit or create a new flow.
-          </p>
-        </div>
+        <h3 className="text-lg font-medium text-white">Flows</h3>
         <button
           type="button"
           onClick={() => nav("/advisor/flow")}
           className="rounded-lg bg-mdb-leaf text-mdb-forest px-4 py-2 text-sm font-semibold hover:bg-mdb-leaf/90"
         >
-          + New flow
+          + Create
         </button>
       </div>
 
       {/* Flow list */}
       {flows.length === 0 ? (
-        <div className="glass rounded-xl p-8 text-center">
-          <div className="text-3xl mb-3 opacity-50">⚡</div>
-          <p className="text-slate-400 mb-4">No saved flows yet.</p>
-          <p className="text-sm text-slate-500 mb-6">
-            Build visual pipelines by connecting tools — MongoDB queries, Atlas APIs, LLM reasoning, and notifications.
-          </p>
-          <button
-            type="button"
-            onClick={() => nav("/advisor/flow")}
-            className="rounded-lg bg-mdb-leaf text-mdb-forest px-5 py-2.5 text-sm font-semibold hover:bg-mdb-leaf/90"
-          >
-            Create your first flow
-          </button>
+        <div className="glass rounded-xl p-6 text-center">
+          <p className="text-slate-500">No saved flows yet.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -615,9 +587,9 @@ export function WorkflowNew() {
       case "templates":
         return "Pick what to monitor, configure, and launch.";
       case "chat":
-        return "Describe what you want in plain English — MDBA builds the pipeline.";
+        return "Describe what you want and we'll build the pipeline.";
       case "editor":
-        return "Drag tools onto the canvas. Connect them to build your pipeline.";
+        return null;
     }
   };
 
@@ -704,7 +676,7 @@ export function WorkflowNew() {
       </div>
 
       {/* Subtitle */}
-      <p className="text-slate-400 text-sm">{getSubtitle()}</p>
+      {getSubtitle() && <p className="text-slate-400 text-sm">{getSubtitle()}</p>}
 
       {err && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
@@ -898,47 +870,20 @@ export function WorkflowNew() {
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
                 <span className="text-xs text-mdb-leaf">
-                  Write protection on — no cluster modifications without your approval.
+                  Write protection on. No cluster modifications without your approval.
                 </span>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={createWorkflow}
-                  className="flex-1 rounded-lg bg-mdb-leaf text-mdb-forest py-2.5 text-sm font-semibold disabled:opacity-40"
-                >
-                  {saving ? "Creating..." : "Create workflow"}
-                </button>
-                <button
-                  type="button"
-                  onClick={openInFlowEditor}
-                  className="rounded-lg border border-[#112733] text-[#C5CDD3] px-5 py-2.5 text-sm hover:bg-white/[0.02]"
-                >
-                  Customize in editor
-                </button>
-              </div>
+              {/* Action button */}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={createWorkflow}
+                className="w-full rounded-lg bg-mdb-leaf text-mdb-forest py-2.5 text-sm font-semibold disabled:opacity-40"
+              >
+                {saving ? "Creating..." : "Create workflow"}
+              </button>
 
-              <p className="text-center text-xs text-slate-500">
-                Or:{" "}
-                <button
-                  type="button"
-                  onClick={openInFlowEditor}
-                  className="text-slate-400 hover:text-mdb-leaf"
-                >
-                  Open in flow editor
-                </button>
-                {" · "}
-                <button
-                  type="button"
-                  onClick={() => setMode("chat")}
-                  className="text-slate-400 hover:text-mdb-leaf"
-                >
-                  Describe in chat
-                </button>
-              </p>
             </div>
           )}
         </div>

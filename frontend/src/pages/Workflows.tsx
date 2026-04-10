@@ -258,13 +258,12 @@ export function Workflows() {
       {/* Header */}
       <PageHeader
         title="Workflows"
-        description="Automated monitoring pipelines that watch your clusters and report findings."
         actions={
           <Link
             to="/workflows/new"
             className="rounded-md bg-mdb-leaf text-[#001E2B] px-4 py-2 text-sm font-medium hover:bg-mdb-leaf/90 transition-colors"
           >
-            + New workflow
+            + Create
           </Link>
         }
       />
@@ -286,12 +285,12 @@ export function Workflows() {
       <div className="space-y-2">
         {filteredItems.length === 0 && (
           <Card className="p-8 text-center">
-            <p className="text-[#889397] mb-4">No workflows yet. Create one to start monitoring your clusters.</p>
+            <p className="text-[#889397] mb-4">No workflows yet.</p>
             <Link
               to="/workflows/new"
               className="inline-flex items-center rounded-md bg-mdb-leaf text-[#001E2B] px-4 py-2 text-sm font-medium hover:bg-mdb-leaf/90"
             >
-              + New workflow
+              + Create
             </Link>
           </Card>
         )}
