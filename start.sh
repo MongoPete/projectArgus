@@ -45,7 +45,7 @@ echo "  Frontend → http://127.0.0.1:5173"
 echo "  Press Ctrl+C to stop"
 echo ""
 
-(cd "$BACKEND" && uvicorn app.main:app --reload --host 127.0.0.1 --port 8000) &
+(cd "$BACKEND" && uvicorn app.main:app --reload --host 127.0.0.1 --port 8001) &
 BE_PID=$!
 
 (cd "$FRONTEND" && npm run dev -- --host 127.0.0.1) &

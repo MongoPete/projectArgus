@@ -50,10 +50,10 @@ function clamp(val: number, min: number, max: number) {
   return Math.max(min, Math.min(max, val));
 }
 
-export function TourOverlay({ onClose }: { onClose: () => void }) {
+export function TourOverlay({ onClose, initialStep = 0 }: { onClose: () => void; initialStep?: number }) {
   const nav = useNavigate();
   const location = useLocation();
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepIdx, setStepIdx] = useState(initialStep);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const [tipSize, setTipSize] = useState({ w: 280, h: 160 });
@@ -77,12 +77,15 @@ export function TourOverlay({ onClose }: { onClose: () => void }) {
   // Handle navigation
   useEffect(() => {
     if (!step) return;
-    const currentPath = location.pathname + location.search;
-    const targetPath = step.route;
+    const currentFull = location.pathname + location.search;
+    const stepBase = step.route.split("?")[0];
+    const onWrongPath = !location.pathname.startsWith(stepBase);
+    const onWrongSearch =
+      step.exact
+        ? currentFull !== step.route          // must match exactly — no stray query params
+        : step.route.includes("?") && currentFull !== step.route;
 
-    // Check if we need to navigate (compare path and search params)
-    if (!currentPath.startsWith(targetPath.split('?')[0]) ||
-        (targetPath.includes('?') && currentPath !== targetPath)) {
+    if (onWrongPath || onWrongSearch) {
       nav(step.route);
     }
   }, [step, location.pathname, location.search, nav]);
@@ -90,6 +93,13 @@ export function TourOverlay({ onClose }: { onClose: () => void }) {
   // Measure target and handle click actions
   useEffect(() => {
     setIsAnimating(true);
+
+    // Scroll target into view before measuring so off-screen elements are visible
+    if (step?.scrollToTarget && step.target) {
+      const el = document.querySelector(step.target);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
     const timer1 = setTimeout(measureTarget, 250);
     const timer2 = setTimeout(measureTarget, 500);
     const timer3 = setTimeout(() => setIsAnimating(false), 300);
@@ -166,12 +176,22 @@ export function TourOverlay({ onClose }: { onClose: () => void }) {
   const spotWidth = targetRect ? targetRect.width + pad * 2 : 0;
   const spotHeight = targetRect ? targetRect.height + pad * 2 : 0;
 
+  function forwardScroll(e: React.WheelEvent) {
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const scrollable = target?.closest<HTMLElement>("[data-tour], main, [class*='overflow-y'], [class*='overflow-auto'], body");
+    if (scrollable && scrollable !== document.body) {
+      scrollable.scrollTop += e.deltaY;
+    } else {
+      window.scrollBy(0, e.deltaY);
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
       {/* Dark overlay with cutout using clip-path */}
       {targetRect && !isCentered ? (
         <div
-          className="absolute inset-0 bg-black/70 transition-all duration-500"
+          className="absolute inset-0 bg-black/70 transition-all duration-500 pointer-events-auto"
           style={{
             clipPath: `polygon(
               0% 0%,
@@ -187,11 +207,13 @@ export function TourOverlay({ onClose }: { onClose: () => void }) {
             )`,
           }}
           onClick={onClose}
+          onWheel={forwardScroll}
         />
       ) : (
         <div
-          className="absolute inset-0 bg-black/70"
+          className="absolute inset-0 bg-black/70 pointer-events-auto"
           onClick={onClose}
+          onWheel={forwardScroll}
         />
       )}
 
@@ -215,7 +237,7 @@ export function TourOverlay({ onClose }: { onClose: () => void }) {
       {/* Tooltip */}
       <div
         ref={tipRef}
-        className={`absolute z-10 transition-all duration-500 ease-out ${
+        className={`absolute z-10 pointer-events-auto transition-all duration-500 ease-out ${
           isAnimating ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
         }`}
         style={{ top: finalPos.top, left: finalPos.left }}

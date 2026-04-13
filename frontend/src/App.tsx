@@ -11,13 +11,32 @@ import { WorkflowNew } from "@/pages/WorkflowNew";
 import { Workflows } from "@/pages/Workflows";
 import { TourContext } from "@/tour/useTour";
 import { TourOverlay } from "@/tour/TourOverlay";
+import { TOUR_STEPS } from "@/tour/tourSteps";
 import { api } from "@/api";
+
+function bestStepForPath(path: string): number {
+  // Find the last step whose base route matches the current path,
+  // skipping welcome (0) and complete (last) so we land in the meat of the tour.
+  const candidates = TOUR_STEPS.map((s, i) => ({ s, i })).filter(({ s, i }) => {
+    if (i === 0 || i === TOUR_STEPS.length - 1) return false;
+    return path.startsWith(s.route.split("?")[0]);
+  });
+  return candidates.length > 0 ? candidates[0].i : 0;
+}
 
 export default function App() {
   const [tourActive, setTourActive] = useState(false);
+  const [startStep, setStartStep] = useState(0);
 
-  const startTour = useCallback(() => {
-    api.settings.resetDemo().catch(() => {}).finally(() => setTourActive(true));
+  const startTour = useCallback((fromPath?: string) => {
+    const step = fromPath ? bestStepForPath(fromPath) : 0;
+    setStartStep(step);
+    if (step === 0) {
+      // Only reset demo data when starting fresh from the welcome screen
+      api.settings.resetDemo().catch(() => {}).finally(() => setTourActive(true));
+    } else {
+      setTourActive(true);
+    }
   }, []);
 
   const tourCtx = useMemo(
@@ -51,7 +70,9 @@ export default function App() {
           <Route path="dashboard" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-      {tourActive && <TourOverlay onClose={() => setTourActive(false)} />}
+      {tourActive && (
+        <TourOverlay initialStep={startStep} onClose={() => setTourActive(false)} />
+      )}
     </TourContext.Provider>
   );
 }

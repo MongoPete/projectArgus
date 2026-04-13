@@ -693,7 +693,7 @@ export function FlowBuilder() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden" data-tour="flow-workspace">
         {/* Palette */}
         <aside
           className={`shrink-0 border-r border-[#112733] bg-[#0B2330] flex flex-col overflow-hidden transition-[width] duration-200 ${

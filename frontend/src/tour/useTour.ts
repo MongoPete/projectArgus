@@ -2,7 +2,8 @@ import { createContext, useContext } from "react";
 
 export interface TourCtx {
   active: boolean;
-  start: () => void;
+  /** Pass the current pathname to resume the tour from the nearest matching step */
+  start: (fromPath?: string) => void;
   stop: () => void;
 }
 

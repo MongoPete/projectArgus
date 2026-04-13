@@ -137,7 +137,7 @@ export function Layout() {
         <div className="px-3 py-3 border-t border-white/[0.06] shrink-0">
           <button
             type="button"
-            onClick={tour.start}
+            onClick={() => tour.start(pathname)}
             className="w-full rounded-md border border-mdb-leaf/25 bg-mdb-leaf/[0.08] px-3 py-2 text-[11px] text-mdb-leaf font-medium hover:bg-mdb-leaf/15 transition-colors"
           >
             ▶ Guided tour

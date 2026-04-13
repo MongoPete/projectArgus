@@ -122,13 +122,13 @@ async def run_flow_stream(body: FlowRunStreamRequest, db: AsyncIOMotorDatabase =
             yield line.encode("utf-8")
             kind = entry.get("kind", "text")
             if kind == "heading":
-                await asyncio.sleep(0.35)
+                await asyncio.sleep(1.2)
             elif kind == "state":
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(0.9)
             elif kind == "json":
-                await asyncio.sleep(0.15)
+                await asyncio.sleep(0.6)
             else:
-                await asyncio.sleep(0.08)
+                await asyncio.sleep(0.35)
 
     return StreamingResponse(ndjson_chunks(), media_type="application/x-ndjson")
 

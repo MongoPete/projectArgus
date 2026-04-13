@@ -301,7 +301,7 @@ function generateDefaultInsights(category: FindingCategory): { title: string; de
 }
 
 function CuratedInsights({ finding }: { finding: Finding }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const category = getCategoryType(finding.agent);
 
   const insights = useMemo(() => {
@@ -551,7 +551,7 @@ function DecisionSection({
   ];
 
   return (
-    <div className="mt-8">
+    <div className="mt-8" data-tour="decision-section">
       <div className="text-[11px] text-[#5C6C75] tracking-wider uppercase mb-3.5">
         YOUR CALL
       </div>
@@ -666,7 +666,7 @@ function DetailView({
   const pillVariant: PillVariant = localStatus === "approved" || localStatus === "dismissed" ? "success" : severityToVariant(finding.severity);
 
   return (
-    <div>
+    <div data-tour="finding-detail">
       {showConfirmation && (
         <ConfirmationModal
           finding={finding}
@@ -919,7 +919,7 @@ function ListView({
 
       {/* Table rows */}
       <div>
-        {filteredItems.map((f) => {
+        {filteredItems.map((f, index) => {
           const clusterName = extractClusterFromFinding(f);
           const hasSavings = f.estimated_monthly_savings_usd && f.estimated_monthly_savings_usd > 0;
 
@@ -927,6 +927,7 @@ function ListView({
             <div
               key={f.id}
               onClick={() => onSelect(f.id)}
+              data-tour={index === 0 ? "finding-row-0" : undefined}
               className="grid gap-4 px-6 py-4 items-center border-b border-[#0E2230] cursor-pointer hover:bg-white/[0.025] transition-colors"
               style={{ gridTemplateColumns: gridCols }}
             >
